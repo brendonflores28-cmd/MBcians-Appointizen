@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MBCIANS APPOINTIZEN</title>
+    <script>
+      const session = JSON.parse(localStorage.getItem('mbcians_appointizen_session') || 'null');
+      const routes = {
+        student: '/student/',
+        admin: '/admin/',
+        cashier: '/cashier/',
+        registrar_staff: '/staff/',
+        registrar_head: '/head/',
+      };
+      window.location.replace(routes[session?.role] || '/login.html');
+    </script>
+  </head>
+  <body></body>
+</html>

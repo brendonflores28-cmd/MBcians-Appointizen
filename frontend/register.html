@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MBCIANS APPOINTIZEN | Register</title>
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/auth.css" />
+  </head>
+  <body class="auth-body">
+    <main class="auth-layout">
+      <section class="auth-hero">
+        <div class="auth-hero__overlay"></div>
+        <div class="auth-hero__brand">
+          <img src="/assets/logo.png" alt="Mindoro State University logo" class="auth-hero__logo" />
+          <span class="eyebrow">Student Onboarding</span>
+          <h1>Create your account</h1>
+          <p>Register once, then track requests, payment verification, and document completion in real time.</p>
+        </div>
+      </section>
+
+      <section class="auth-panel">
+        <form id="register-form" class="auth-card auth-card--wide" novalidate>
+          <div class="auth-card__header">
+            <img src="/assets/logo.png" alt="MBCIANS APPOINTIZEN logo" class="auth-card__logo" />
+            <div>
+              <span class="eyebrow">Student Registration</span>
+              <h2>Set up your portal access</h2>
+              <p>Only student accounts can be created from this page.</p>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>First name</span>
+              <input name="firstname" type="text" placeholder="Juan" required />
+            </label>
+            <label class="field">
+              <span>Last name</span>
+              <input name="lastname" type="text" placeholder="Dela Cruz" required />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Email address</span>
+            <input name="email" type="email" placeholder="name@minsu.edu.ph" required />
+          </label>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Phone number</span>
+              <input name="phone" type="text" placeholder="09XXXXXXXXX" required />
+            </label>
+            <label class="field">
+              <span>Student ID</span>
+              <input name="student_id" type="text" placeholder="MBC2024-12345" required />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Password</span>
+            <input name="password" type="password" placeholder="At least 8 characters" required />
+          </label>
+
+          <button id="register-button" type="submit" class="button button--primary button--block">Create Student Account</button>
+          <p id="register-message" class="form-message" aria-live="polite"></p>
+
+          <div class="auth-card__footer">
+            <span>Already have an account?</span>
+            <a href="/login.html">Sign in</a>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script type="module" src="/register.js"></script>
+  </body>
+</html>
