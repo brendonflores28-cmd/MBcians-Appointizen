@@ -23,7 +23,7 @@ const {
 } = require("./utils/runtime");
 
 function validateRequiredEnv() {
-  const required = ["DB_HOST", "DB_USER", "DB_NAME", "JWT_SECRET"];
+  const required = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME", "JWT_SECRET"];
   const missing = required.filter(
     (key) => !String(process.env[key] || "").trim(),
   );

@@ -1,11 +1,25 @@
+# Dependencies
 node_modules/
 frontend/node_modules/
-frontend/dist/
 backend/node_modules/
+
+# Build output
+frontend/dist/
+
+# Uploads (binary files, not tracked)
 backend/uploads/payment-proofs/*
 !backend/uploads/payment-proofs/.gitkeep
+
+# Environment files
 .env
 backend/.env
 frontend/.env
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.err.log
 npm-debug.log*

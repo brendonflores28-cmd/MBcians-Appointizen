@@ -49,8 +49,10 @@ backend/
   db.js
   server.js
 
-database/
-  mbciansappointizen.sql
+backend/
+  database/
+    mbciansappointizen.sql
+  docs/
 ```
 
 ## Local development
@@ -72,7 +74,7 @@ database/
 
    ```bash
    mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS mbciansappointizen CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-   mysql -u root -p mbciansappointizen < database/mbciansappointizen.sql
+   mysql -u root -p mbciansappointizen < backend/database/mbciansappointizen.sql
    ```
 
 4. Update `backend/.env` with your local MySQL credentials.
@@ -152,7 +154,7 @@ JWT_EXPIRES_IN=7d
 1. Create a new Railway project.
 2. Add a MySQL service.
 3. Open the MySQL service connection details and copy the host, port, database name, username, and password.
-4. Import [`database/mbciansappointizen.sql`](database/mbciansappointizen.sql) into the Railway MySQL instance or run it inside the Railway MySQL console after selecting the target database.
+4. Import [`backend/database/mbciansappointizen.sql`](backend/database/mbciansappointizen.sql) into the Railway MySQL instance or run it inside the Railway MySQL console after selecting the target database.
 5. Confirm that the `settings` table contains row `id = 1`.
 
 ## Railway backend deployment

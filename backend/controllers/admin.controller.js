@@ -468,10 +468,11 @@ async function updateAppointmentStatus(req, res) {
   const remarks = normalizeOptionalString(req.body.remarks, 500);
   const rejectionReason =
     action === "reject"
-      ? normalizeRequiredString(req.body.rejectionReason, "Rejection reason", {
-          minLength: 4,
-          maxLength: 500,
-        })
+      ? normalizeRequiredString(
+          req.body.rejectionReason || req.body.remarks,
+          "Rejection reason",
+          { minLength: 4, maxLength: 500 },
+        )
       : null;
   const meta = getRequestMeta(req);
   const appointment = await getAppointmentById(appointmentId);
