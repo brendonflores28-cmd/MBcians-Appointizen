@@ -707,7 +707,6 @@ function renderSettingsSection(state) {
 }
 
 createPortalApp({
-  roleLabel: "Admin",
   portalTitle: "Administration Console",
   heroTitle: "System administration",
   navItems: NAV_ITEMS,
