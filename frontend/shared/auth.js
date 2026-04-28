@@ -1,11 +1,12 @@
 const STORAGE_KEY = 'mbcians_appointizen_session';
+const BASE = import.meta.env.BASE_URL;
 
 export const ROLE_ROUTES = Object.freeze({
-  student: '/student/',
-  admin: '/admin/',
-  cashier: '/cashier/',
-  registrar_staff: '/staff/',
-  registrar_head: '/head/',
+  student: `${BASE}student/`,
+  admin: `${BASE}admin/`,
+  cashier: `${BASE}cashier/`,
+  registrar_staff: `${BASE}staff/`,
+  registrar_head: `${BASE}head/`,
 });
 
 export function getSession() {
@@ -42,14 +43,14 @@ export function clearSession() {
 }
 
 export function redirectByRole(role) {
-  window.location.replace(ROLE_ROUTES[role] || '/login.html');
+  window.location.replace(ROLE_ROUTES[role] || `${BASE}login.html`);
 }
 
 export function requireRole(expectedRole) {
   const session = getSession();
 
   if (!session?.token || !session?.role) {
-    window.location.replace('/login.html');
+    window.location.replace(`${BASE}login.html`);
     return null;
   }
 

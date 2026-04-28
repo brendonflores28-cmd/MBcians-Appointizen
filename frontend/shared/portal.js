@@ -120,7 +120,7 @@ export function createPortalApp(config) {
       }
       disconnectSocket();
       clearSession();
-      window.location.replace("/login.html");
+      window.location.replace(import.meta.env.BASE_URL + "login.html");
     },
   };
 

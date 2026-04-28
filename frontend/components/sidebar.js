@@ -34,7 +34,7 @@ export function renderSidebar({
   return `
     <aside class="sidebar">
       <div class="sidebar__brand">
-        <img src="/assets/logo.png" alt="${escapeHTML(APP_CONFIG.APP_NAME)} logo" />
+        <img src="${import.meta.env.BASE_URL}assets/logo.png" alt="${escapeHTML(APP_CONFIG.APP_NAME)} logo" />
         <div>
           <h2>${escapeHTML(APP_CONFIG.APP_NAME)}</h2>
           <p>${escapeHTML(roleLabel)}</p>
@@ -61,7 +61,7 @@ export function renderSidebar({
             <aside class="mobile-drawer ${mobileMenuOpen ? "is-open" : ""}" aria-hidden="${mobileMenuOpen ? "false" : "true"}">
               <div class="mobile-drawer__header">
                 <div class="sidebar__brand mobile-drawer__brand">
-                  <img src="/assets/logo.png" alt="${escapeHTML(APP_CONFIG.APP_NAME)} logo" />
+                  <img src="${import.meta.env.BASE_URL}assets/logo.png" alt="${escapeHTML(APP_CONFIG.APP_NAME)} logo" />
                   <div>
                     <h2>${escapeHTML(APP_CONFIG.APP_NAME)}</h2>
                     <p>${escapeHTML(roleLabel)}</p>

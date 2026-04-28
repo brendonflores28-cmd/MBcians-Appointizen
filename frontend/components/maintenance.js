@@ -49,7 +49,7 @@ window.handleBackToLogin = function() {
     
     // Navigate to login after brief delay to ensure cleanup
     setTimeout(() => {
-      window.location.href = '/login.html';
+      window.location.href = import.meta.env.BASE_URL + 'login.html';
     }, 100);
   } catch (error) {
     console.error('Error during logout:', error);

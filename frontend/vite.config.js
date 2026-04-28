@@ -4,8 +4,10 @@ import { resolve } from 'path';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
   const proxyTarget = env.VITE_DEV_PROXY_TARGET || '';
+  const base = process.env.VITE_BASE_PATH || '/';
 
   return {
+    base,
     server: {
       port: 5173,
       proxy: proxyTarget
