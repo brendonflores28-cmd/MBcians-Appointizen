@@ -169,7 +169,6 @@ function renderAppointmentsSection(state) {
       <div class="section-card__header">
         <div>
           <h3 class="section-card__title">All appointments</h3>
-          <p class="section-card__description">Admin can view and manage all student appointments with full control.</p>
         </div>
       </div>
       ${renderTable({
@@ -356,35 +355,30 @@ function renderAdminOverview(state) {
         label: "Active users",
         value: state.dashboard.stats.activeUsers,
         icon: "users",
-        hint: "Accounts currently able to access the system.",
         tone: "forest",
       },
       {
         label: "Appointments",
         value: state.dashboard.stats.totalAppointments,
         icon: "calendar",
-        hint: "All recorded requests in the platform.",
         tone: "sky",
       },
       {
         label: "Pending approvals",
         value: state.dashboard.stats.pendingAppointments,
         icon: "clock",
-        hint: "Requests waiting for head or staff review.",
         tone: "gold",
       },
       {
         label: "Cancelled",
         value: state.dashboard.stats.cancelledAppointments,
         icon: "alert",
-        hint: "Student requests removed from the active workflow.",
         tone: "danger",
       },
       {
         label: "Payments to verify",
         value: state.dashboard.stats.pendingPayments,
         icon: "wallet",
-        hint: "Open cashier queue items.",
         tone: "success",
       },
     ])}
@@ -393,7 +387,6 @@ function renderAdminOverview(state) {
       <div class="section-card__header">
         <div>
           <h3 class="section-card__title">Student appointment history</h3>
-          <p class="section-card__description">Review every appointment students have submitted so repeated requests stay visible in one place.</p>
         </div>
       </div>
       ${
@@ -438,7 +431,6 @@ function renderAdminOverview(state) {
       <div class="section-card__header">
         <div>
           <h3 class="section-card__title">Recent activity</h3>
-          <p class="section-card__description">Use this log snapshot to audit the latest system-level actions.</p>
         </div>
       </div>
       ${
@@ -477,7 +469,6 @@ function renderDocumentsSection(state) {
       <div class="section-card__header">
         <div>
           <h3 class="section-card__title">Document types</h3>
-          <p class="section-card__description">Manage the list of available registrar requests and fee rules.</p>
         </div>
         <button class="button button--primary" type="button" data-action="admin-add-document">Add document</button>
       </div>
@@ -527,7 +518,6 @@ function renderTimeSlotsSection(state) {
       <div class="section-card__header">
         <div>
           <h3 class="section-card__title">Time slots</h3>
-          <p class="section-card__description">Configure how many students can book each appointment window.</p>
         </div>
         <button class="button button--primary" type="button" data-action="admin-add-time-slot">Add slot</button>
       </div>
@@ -717,14 +707,9 @@ function renderSettingsSection(state) {
 }
 
 createPortalApp({
-  role: "admin",
   roleLabel: "Admin",
   portalTitle: "Administration Console",
-  portalDescription:
-    "Control documents, schedules, users, and registrar settings from a single live operations panel.",
   heroTitle: "System administration",
-  heroDescription:
-    "Catalog changes, blocked dates, user access, and payment settings sync instantly across all roles.",
   navItems: NAV_ITEMS,
   defaultSection: "overview",
   primaryAction: {

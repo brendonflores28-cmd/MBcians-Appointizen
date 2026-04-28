@@ -209,35 +209,30 @@ function renderStudentOverview(state) {
         label: 'Total appointments',
         value: dashboard.stats.totalAppointments,
         icon: 'dashboard',
-        hint: 'All records linked to your account.',
         tone: 'forest',
       },
       {
         label: 'Pending',
         value: dashboard.stats.pendingAppointments,
         icon: 'clock',
-        hint: 'Waiting for registrar approval.',
         tone: 'gold',
       },
       {
         label: 'In progress',
         value: dashboard.stats.inProgressAppointments,
         icon: 'calendar',
-        hint: 'Approved, assigned, or being processed.',
         tone: 'sky',
       },
       {
         label: 'Completed',
         value: dashboard.stats.completedAppointments,
         icon: 'check',
-        hint: 'Finished or released requests.',
         tone: 'success',
       },
       {
         label: 'Cancelled',
         value: dashboard.stats.cancelledAppointments,
         icon: 'alert',
-        hint: 'Requests you cancelled before completion.',
         tone: 'danger',
       },
     ])}
@@ -272,7 +267,6 @@ function renderStudentOverview(state) {
         <div class="section-card__header">
           <div>
             <h3 class="section-card__title">Office details</h3>
-            <p class="section-card__description">Helpful contact details before you visit the registrar office.</p>
           </div>
         </div>
 
@@ -289,7 +283,6 @@ function renderStudentOverview(state) {
       <div class="section-card__header">
         <div>
           <h3 class="section-card__title">Recent requests</h3>
-          <p class="section-card__description">Recent status and payment changes appear here instantly.</p>
         </div>
       </div>
       ${renderAppointmentsTable(appointments.slice(0, 5))}
@@ -309,7 +302,6 @@ function renderStudentBookSection(state) {
       <div class="section-card__header">
         <div>
           <h3 class="section-card__title">Book an appointment</h3>
-          <p class="section-card__description">Use the guided flow below to choose the document, lock a schedule, and submit your request.</p>
         </div>
       </div>
 
@@ -587,7 +579,7 @@ function renderStudentBookSection(state) {
                             <h4>Pay at the cashier window</h4>
                             <p class="section-card__description">Submit the appointment now, then bring ${escapeHTML(
                               formatCurrency(totalAmount)
-                            )} when you visit. Cash payments stay visible to cashier and admin until they mark them as paid.</p>
+                            )} when you visit.</p>
                           </div>
                         </article>
                       `
@@ -673,7 +665,6 @@ function renderStudentRequestsSection(state) {
       <div class="section-card__header">
         <div>
           <h3 class="section-card__title">Full request history</h3>
-          <p class="section-card__description">Every appointment, payment update, and cancellation stays visible here without refreshing the page.</p>
         </div>
       </div>
       ${renderAppointmentsTable(appointments)}
@@ -835,7 +826,6 @@ createPortalApp({
   role: 'student',
   roleLabel: 'Student',
   portalTitle: 'Student Portal',
-  portalDescription: 'Manage document appointments, payment submission, and request tracking from one mobile-friendly workspace.',
   heroTitle: 'Student request center',
   heroDescription: 'Book a schedule, upload payment proof, and follow each registrar milestone in real time.',
   mobileNavigation: 'drawer',
