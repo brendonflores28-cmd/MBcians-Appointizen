@@ -212,7 +212,7 @@ createPortalApp({
                     <option value="">All statuses</option>
                     <option value="pending" ${filters.status === 'pending' ? 'selected' : ''}>Pending</option>
                     <option value="approved" ${filters.status === 'approved' ? 'selected' : ''}>Approved</option>
-                    <option value="assigned" ${filters.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+                    <option value="assigned" ${filters.status === 'assigned' ? 'selected' : ''}>Scheduled</option>
                     <option value="processing" ${filters.status === 'processing' ? 'selected' : ''}>Processing</option>
                     <option value="completed" ${filters.status === 'completed' ? 'selected' : ''}>Completed</option>
                     <option value="rejected" ${filters.status === 'rejected' ? 'selected' : ''}>Rejected</option>

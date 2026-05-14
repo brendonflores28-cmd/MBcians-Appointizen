@@ -31,14 +31,9 @@ function getAllowedActions(appointment) {
   }
 
   if (
-    appointment.payment?.method === 'cash' &&
-    appointment.paymentStatus !== 'paid' &&
-    ['approved', 'assigned', 'processing'].includes(appointment.status)
+    ['approved', 'assigned'].includes(appointment.status) &&
+    (appointment.paymentStatus === 'paid' || appointment.payment?.method === 'cash')
   ) {
-    actions.push({ value: 'mark_paid', label: 'Mark cash payment as paid' });
-  }
-
-  if (['approved', 'assigned'].includes(appointment.status) && appointment.paymentStatus === 'paid') {
     actions.push({ value: 'start_processing', label: 'Start processing' });
   }
 
@@ -182,7 +177,7 @@ createPortalApp({
                     <option value="">All statuses</option>
                     <option value="pending" ${filters.status === 'pending' ? 'selected' : ''}>Pending</option>
                     <option value="approved" ${filters.status === 'approved' ? 'selected' : ''}>Approved</option>
-                    <option value="assigned" ${filters.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+                    <option value="assigned" ${filters.status === 'assigned' ? 'selected' : ''}>Scheduled</option>
                     <option value="processing" ${filters.status === 'processing' ? 'selected' : ''}>Processing</option>
                     <option value="completed" ${filters.status === 'completed' ? 'selected' : ''}>Completed</option>
                     <option value="rejected" ${filters.status === 'rejected' ? 'selected' : ''}>Rejected</option>

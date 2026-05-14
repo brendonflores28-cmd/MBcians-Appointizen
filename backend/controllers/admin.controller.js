@@ -553,27 +553,6 @@ async function updateAppointmentStatus(req, res) {
     paymentHistoryNote = rejectionReason;
     activityAction = "ADMIN_APPOINTMENT_REJECTED";
     description = `Admin rejected appointment ${appointment.referenceNo}.`;
-  } else if (action === "mark_paid") {
-    assert(appointment.payment, "Payment record was not found.");
-    assert(
-      [APPOINTMENT_STATUSES.APPROVED, APPOINTMENT_STATUSES.ASSIGNED, APPOINTMENT_STATUSES.PROCESSING].includes(
-        appointment.status,
-      ),
-      "Only active appointments can be marked as paid.",
-    );
-    assert(
-      appointment.payment.method === PAYMENT_METHODS.CASH,
-      "Only cash payments can be manually marked as paid.",
-    );
-    assert(
-      appointment.payment.status !== PAYMENT_STATUSES.PAID,
-      "Payment is already marked as paid.",
-    );
-    nextPaymentStatus = PAYMENT_STATUSES.PAID;
-    nextPaymentRecordStatus = PAYMENT_STATUSES.PAID;
-    paymentHistoryNote = "Admin marked the cash payment as paid.";
-    activityAction = "ADMIN_PAYMENT_MARKED_PAID";
-    description = `Admin marked cash payment as paid for ${appointment.referenceNo}.`;
   } else if (action === "start_processing") {
     assert(
       [APPOINTMENT_STATUSES.APPROVED, APPOINTMENT_STATUSES.ASSIGNED].includes(
@@ -582,8 +561,9 @@ async function updateAppointmentStatus(req, res) {
       "Only approved or assigned appointments can move to processing.",
     );
     assert(
-      appointment.paymentStatus === PAYMENT_STATUSES.PAID,
-      "Payment must be verified before processing starts.",
+      appointment.paymentStatus === PAYMENT_STATUSES.PAID ||
+        appointment.payment?.method === PAYMENT_METHODS.CASH,
+      "GCash payment must be verified before processing starts.",
     );
     nextStatus = APPOINTMENT_STATUSES.PROCESSING;
     activityAction = "ADMIN_APPOINTMENT_PROCESSING_STARTED";
@@ -696,13 +676,13 @@ async function updateAppointmentStatus(req, res) {
     },
   );
 
-  if (action === "mark_paid" || action === "reject") {
+  if (action === "reject") {
     emitToRecipients(
       SOCKET_EVENTS.PAYMENTS_CHANGED,
       {
         appointmentId,
         paymentId: appointment.payment?.id || null,
-        action: action === "mark_paid" ? "paid" : "rejected",
+        action: "rejected",
       },
       {
         roles: [ROLES.CASHIER, ROLES.STAFF, ROLES.HEAD, ROLES.ADMIN],

@@ -66,30 +66,18 @@ async function updateAppointmentStatus(req, res) {
 
   let nextStatus = appointment.status;
   let nextPaymentStatus = appointment.paymentStatus;
-  let paymentHistoryNote = null;
   let activityAction = null;
   let description = null;
 
-  if (action === 'mark_paid') {
-    assert(appointment.payment, 'Payment record was not found.');
-    assert(
-      [APPOINTMENT_STATUSES.APPROVED, APPOINTMENT_STATUSES.ASSIGNED, APPOINTMENT_STATUSES.PROCESSING].includes(
-        appointment.status
-      ),
-      'Only active appointments can be marked as paid.'
-    );
-    assert(appointment.payment.method === PAYMENT_METHODS.CASH, 'Only cash payments can be manually marked as paid.');
-    assert(appointment.payment.status !== PAYMENT_STATUSES.PAID, 'Payment is already marked as paid.');
-    nextPaymentStatus = PAYMENT_STATUSES.PAID;
-    paymentHistoryNote = 'Registrar staff marked the cash payment as paid.';
-    activityAction = 'STAFF_PAYMENT_MARKED_PAID';
-    description = `Staff marked cash payment as paid for ${appointment.referenceNo}.`;
-  } else if (action === 'start_processing') {
+  if (action === 'start_processing') {
     assert(
       [APPOINTMENT_STATUSES.APPROVED, APPOINTMENT_STATUSES.ASSIGNED].includes(appointment.status),
       'Only approved or assigned appointments can move to processing.'
     );
-    assert(appointment.paymentStatus === PAYMENT_STATUSES.PAID, 'Payment must be verified before processing starts.');
+    assert(
+      appointment.paymentStatus === PAYMENT_STATUSES.PAID || appointment.payment?.method === PAYMENT_METHODS.CASH,
+      'GCash payment must be verified before processing starts.'
+    );
     nextStatus = APPOINTMENT_STATUSES.PROCESSING;
     activityAction = 'APPOINTMENT_PROCESSING_STARTED';
     description = `Started processing appointment ${appointment.referenceNo}.`;
@@ -116,31 +104,6 @@ async function updateAppointmentStatus(req, res) {
       `,
       [nextStatus, nextPaymentStatus, req.user.id, remarks, appointmentId]
     );
-
-    if (appointment.payment?.id && nextPaymentStatus !== appointment.payment.status) {
-      await connection.execute(
-        `
-          UPDATE payments
-          SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `,
-        [nextPaymentStatus, req.user.id, appointment.payment.id]
-      );
-
-      await connection.execute(
-        `
-          INSERT INTO payment_history (
-            payment_id,
-            from_status,
-            to_status,
-            note,
-            actor_id
-          )
-          VALUES (?, ?, ?, ?, ?)
-        `,
-        [appointment.payment.id, appointment.payment.status, nextPaymentStatus, paymentHistoryNote, req.user.id]
-      );
-    }
 
     await writeActivityLog(
       {
@@ -175,14 +138,6 @@ async function updateAppointmentStatus(req, res) {
     { appointmentId, action, status: nextStatus },
     { roles: [ROLES.HEAD, ROLES.ADMIN], userIds: [appointment.studentId, req.user.id] }
   );
-
-  if (action === 'mark_paid') {
-    emitToRecipients(
-      SOCKET_EVENTS.PAYMENTS_CHANGED,
-      { appointmentId, paymentId: appointment.payment?.id || null, action: 'paid' },
-      { roles: [ROLES.CASHIER, ROLES.HEAD, ROLES.ADMIN], userIds: [appointment.studentId, req.user.id] }
-    );
-  }
 
   res.json({
     message: 'Appointment updated successfully.',

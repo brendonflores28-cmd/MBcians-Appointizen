@@ -288,6 +288,10 @@ function getUpcomingAppointment(appointments) {
 }
 
 function canSubmitPayment(appointment) {
+  if (appointment.payment?.method === 'cash') {
+    return false;
+  }
+
   if (appointment.paymentStatus === 'rejected') {
     return !['completed', 'rejected', 'cancelled'].includes(appointment.status);
   }
@@ -1202,7 +1206,7 @@ function renderStudentRequestsSection(state) {
                 <option value="">All statuses</option>
                 <option value="pending" ${filters.status === 'pending' ? 'selected' : ''}>Pending</option>
                 <option value="approved" ${filters.status === 'approved' ? 'selected' : ''}>Approved</option>
-                <option value="assigned" ${filters.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+                <option value="assigned" ${filters.status === 'assigned' ? 'selected' : ''}>Scheduled</option>
                 <option value="processing" ${filters.status === 'processing' ? 'selected' : ''}>Processing</option>
                 <option value="completed" ${filters.status === 'completed' ? 'selected' : ''}>Completed</option>
                 <option value="rejected" ${filters.status === 'rejected' ? 'selected' : ''}>Rejected</option>

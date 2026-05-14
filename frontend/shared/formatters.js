@@ -83,6 +83,10 @@ export function getInitials(name = "") {
 }
 
 export function labelize(value = "") {
+  if (value === "assigned") {
+    return "Scheduled";
+  }
+
   return String(value)
     .replace(/_/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
