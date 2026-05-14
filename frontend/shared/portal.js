@@ -21,6 +21,7 @@ const REFRESH_EVENTS = [
   "catalog:changed",
   "notifications:new",
 ];
+const submittingForms = new WeakSet();
 
 function getDisplayName(user) {
   const firstName = String(user?.firstname || "").trim();
@@ -71,6 +72,45 @@ function getUserChipRoleLabel(user, fallbackRoleLabel = "User") {
     default:
       return fallbackRoleLabel;
   }
+}
+
+function setFormSubmittingState(form, isSubmitting) {
+  if (!(form instanceof HTMLFormElement)) {
+    return;
+  }
+
+  const controls = form.querySelectorAll("input, select, textarea, button");
+  controls.forEach((control) => {
+    if (!(control instanceof HTMLElement)) {
+      return;
+    }
+
+    if (control.dataset.closeModal !== undefined) {
+      return;
+    }
+
+    if (isSubmitting) {
+      control.dataset.originalDisabled = control.disabled ? "true" : "false";
+      control.disabled = true;
+    } else {
+      const wasDisabled = control.dataset.originalDisabled === "true";
+      control.disabled = wasDisabled;
+      delete control.dataset.originalDisabled;
+    }
+  });
+
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (submitButton instanceof HTMLButtonElement) {
+    if (isSubmitting) {
+      submitButton.dataset.originalLabel = submitButton.innerHTML;
+      submitButton.innerHTML = "Applying...";
+    } else if (submitButton.dataset.originalLabel) {
+      submitButton.innerHTML = submitButton.dataset.originalLabel;
+      delete submitButton.dataset.originalLabel;
+    }
+  }
+
+  form.setAttribute("aria-busy", isSubmitting ? "true" : "false");
 }
 
 export function createPortalApp(config) {
@@ -478,10 +518,19 @@ export function createPortalApp(config) {
     }
 
     event.preventDefault();
+    if (submittingForms.has(form)) {
+      return;
+    }
+
+    submittingForms.add(form);
+    setFormSubmittingState(form, true);
     try {
       await config.handleSubmit(form.dataset.form, form, helpers, event);
     } catch (error) {
       showToast(error.message || "An error occurred. Please try again.", "error");
+    } finally {
+      setFormSubmittingState(form, false);
+      submittingForms.delete(form);
     }
   });
 
