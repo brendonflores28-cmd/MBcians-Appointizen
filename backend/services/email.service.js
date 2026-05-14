@@ -4,6 +4,7 @@ const { APPOINTMENT_STATUSES } = require("../utils/constants");
 const { writeActivityLog } = require("../utils/audit");
 
 const READY_FOR_PICKUP_SUBJECT = "YOUR DOCUMENT REQUEST IS READY FOR PICKUP";
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 let transporter = null;
 
@@ -21,18 +22,47 @@ function toBoolean(value, fallback = false) {
   return String(value).toLowerCase() === "true";
 }
 
+function sanitizeValue(value) {
+  return String(value || "").trim();
+}
+
+function isValidEmail(value) {
+  return EMAIL_REGEX.test(sanitizeValue(value).toLowerCase());
+}
+
+function resolveOfficeIdentity(officeSettings = {}) {
+  const smtpFromEmail = sanitizeValue(process.env.SMTP_FROM_EMAIL);
+  const smtpUser = sanitizeValue(process.env.SMTP_USER);
+  const settingsEmail = sanitizeValue(officeSettings.org_email);
+  const officeName =
+    sanitizeValue(process.env.SMTP_FROM_NAME) ||
+    sanitizeValue(officeSettings.org_name) ||
+    "Registrar Office";
+
+  const officeEmail = isValidEmail(smtpFromEmail)
+    ? smtpFromEmail
+    : isValidEmail(settingsEmail)
+      ? settingsEmail
+      : smtpUser;
+
+  return {
+    officeName,
+    officeEmail,
+  };
+}
+
 function getTransporter() {
   if (!transporter) {
     const port = Number(process.env.SMTP_PORT || 587);
     const secure = toBoolean(process.env.SMTP_SECURE, port === 465);
 
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: sanitizeValue(process.env.SMTP_HOST),
       port,
       secure,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
+        user: sanitizeValue(process.env.SMTP_USER),
+        pass: sanitizeValue(process.env.SMTP_PASSWORD),
       },
     });
   }
@@ -159,15 +189,19 @@ async function sendReadyForPickupEmail({
     throw new Error("SMTP email configuration is incomplete.");
   }
 
-  const resolvedOfficeName = officeName || "Registrar Office";
+  const resolvedOfficeName = sanitizeValue(officeName) || "Registrar Office";
   const resolvedOfficeEmail =
-    officeEmail ||
-    String(process.env.SMTP_FROM_EMAIL || "").trim() ||
-    String(process.env.SMTP_USER || "").trim();
-  const recipient = toEmail || appointment.studentEmail;
+    sanitizeValue(officeEmail) ||
+    sanitizeValue(process.env.SMTP_FROM_EMAIL) ||
+    sanitizeValue(process.env.SMTP_USER);
+  const recipient = sanitizeValue(toEmail || appointment.studentEmail);
 
   if (!recipient) {
     throw new Error("Recipient email address is required.");
+  }
+
+  if (!isValidEmail(resolvedOfficeEmail)) {
+    throw new Error("Sender email address is invalid.");
   }
 
   await getTransporter().sendMail({
@@ -247,21 +281,14 @@ async function sendAppointmentCompletedEmailNotification({
   }
 
   const officeSettings = await getOfficeSettings();
-  const fromAddress =
-    String(process.env.SMTP_FROM_EMAIL || "").trim() ||
-    String(officeSettings.org_email || "").trim() ||
-    String(process.env.SMTP_USER || "").trim();
-  const fromName =
-    String(process.env.SMTP_FROM_NAME || "").trim() ||
-    String(officeSettings.org_name || "").trim() ||
-    "Registrar Office";
+  const { officeName, officeEmail } = resolveOfficeIdentity(officeSettings);
 
   try {
     await sendReadyForPickupEmail({
       appointment,
       toEmail: appointment.studentEmail,
-      officeName: fromName,
-      officeEmail: officeSettings.org_email || fromAddress,
+      officeName,
+      officeEmail,
     });
 
     await writeEmailAuditLog({

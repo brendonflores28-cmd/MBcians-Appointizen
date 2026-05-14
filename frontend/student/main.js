@@ -1087,7 +1087,7 @@ function renderStudentBookSection(state) {
                                 <div class="slot-card__meta">
                                   <strong>${escapeHTML(formatTimeRange(slot.startTime, slot.endTime))}</strong>
                                   ${slot.disabled
-                                    ? '<span class="slot-unavail-msg">Fully booked — no slots remaining</span>'
+                                    ? '<span class="slot-unavail-msg">Fully booked</span>'
                                     : `<span>${escapeHTML(String(slot.remaining))} slot${slot.remaining === 1 ? '' : 's'} left</span>`
                                   }
                                 </div>
