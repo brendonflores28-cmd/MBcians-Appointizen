@@ -127,6 +127,52 @@ function getPurposeOtherValue(booking, purposeOptions) {
   return String(booking.purposeOther || (booking.purpose === PURPOSE_OTHER_OPTION ? '' : booking.purpose) || '');
 }
 
+function normalizePurposeValue(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function resolveSubmittedPurpose(formData, booking, purposeOptions) {
+  const selectedPurpose = String(formData.get('purpose') || '').trim();
+  const purposeOther = String(formData.get('purposeOther') || '').trim();
+  const fallbackPurpose = String(booking?.purpose || '').trim();
+  const fallbackPurposeOther = String(booking?.purposeOther || '').trim();
+  const normalizedSelectedPurpose = normalizePurposeValue(selectedPurpose);
+  const normalizedOtherOption = normalizePurposeValue(PURPOSE_OTHER_OPTION);
+  const normalizedPurposeOptions = purposeOptions.map(normalizePurposeValue);
+  const matchesKnownOption = normalizedPurposeOptions.includes(normalizedSelectedPurpose);
+  const selectedPurposeIsOther = normalizedSelectedPurpose === normalizedOtherOption;
+  const resolvedPurposeOther = purposeOther || fallbackPurposeOther;
+
+  if (matchesKnownOption) {
+    return {
+      selectedPurpose,
+      purpose: selectedPurposeIsOther ? resolvedPurposeOther : selectedPurpose,
+      purposeOther: selectedPurposeIsOther ? resolvedPurposeOther : '',
+      isValidSelection: true,
+    };
+  }
+
+  if (fallbackPurpose) {
+    const normalizedFallbackPurpose = normalizePurposeValue(fallbackPurpose);
+    const fallbackIsKnownOption = normalizedPurposeOptions.includes(normalizedFallbackPurpose);
+    const fallbackIsOther = normalizedFallbackPurpose === normalizedOtherOption;
+
+    return {
+      selectedPurpose: fallbackIsKnownOption ? fallbackPurpose : PURPOSE_OTHER_OPTION,
+      purpose: fallbackIsOther ? resolvedPurposeOther : fallbackPurpose,
+      purposeOther: fallbackIsOther ? resolvedPurposeOther : '',
+      isValidSelection: fallbackIsKnownOption || Boolean(resolvedPurposeOther),
+    };
+  }
+
+  return {
+    selectedPurpose,
+    purpose: resolvedPurposeOther,
+    purposeOther: resolvedPurposeOther,
+    isValidSelection: selectedPurposeIsOther && Boolean(resolvedPurposeOther),
+  };
+}
+
 function padDatePart(value) {
   return String(value).padStart(2, '0');
 }
@@ -1606,11 +1652,14 @@ createPortalApp({
       const documentTypeId = Number(formData.get('documentTypeId'));
       const selectedDocument = state.dashboard.documents.find((item) => Number(item.id) === documentTypeId);
       const validPurposeOptions = getPurposeOptions(selectedDocument?.name);
-      const selectedPurpose = String(formData.get('purpose') || '').trim();
-      const purposeOther = String(formData.get('purposeOther') || '').trim();
-      const purpose = selectedPurpose === PURPOSE_OTHER_OPTION ? purposeOther : selectedPurpose;
+      const {
+        selectedPurpose,
+        purpose,
+        purposeOther,
+        isValidSelection,
+      } = resolveSubmittedPurpose(formData, state.booking, validPurposeOptions);
 
-      if (!validPurposeOptions.includes(selectedPurpose)) {
+      if (!isValidSelection) {
         helpers.showToast('Choose a valid purpose for the selected document type.', 'warning');
         return;
       }
