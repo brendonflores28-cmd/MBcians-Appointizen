@@ -309,7 +309,7 @@ function openAdminAppointmentModal(helpers, appointment) {
     allowedActions.push({ value: "complete", label: "Mark as complete" });
   }
 
-  if (["pending", "approved", "assigned"].includes(appointment.status)) {
+  if (["approved", "assigned"].includes(appointment.status)) {
     allowedActions.push({ value: "reject", label: "Reject request" });
   }
 
@@ -460,7 +460,7 @@ function renderAdminOverview(state) {
                 {
                   label: "Status",
                   render: (row) =>
-                    `${statusBadge(row.status)}<br><span class="muted">${statusBadge(row.paymentStatus)}</span>`,
+                    statusBadge(row.status),
                 },
               ],
             })

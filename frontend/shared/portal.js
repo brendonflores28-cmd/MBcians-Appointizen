@@ -478,7 +478,11 @@ export function createPortalApp(config) {
     }
 
     event.preventDefault();
-    await config.handleSubmit(form.dataset.form, form, helpers, event);
+    try {
+      await config.handleSubmit(form.dataset.form, form, helpers, event);
+    } catch (error) {
+      showToast(error.message || "An error occurred. Please try again.", "error");
+    }
   });
 
   document.addEventListener("input", async (event) => {
