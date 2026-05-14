@@ -73,19 +73,15 @@ function openDocumentModal(helpers, documentType = null) {
         </label>
         <div class="field-grid">
           <label class="field">
-            <span>Base fee</span>
+            <span>Base fee (per copy)</span>
             <input name="baseFee" type="number" min="0" step="0.01" value="${documentType?.baseFee || 0}" required />
           </label>
           <label class="field">
-            <span>Copy fee</span>
-            <input name="copyFee" type="number" min="0" step="0.01" value="${documentType?.copyFee || 0}" required />
+            <span>Rush fee (per copy)</span>
+            <input name="rushFee" type="number" min="0" step="0.01" value="${documentType?.rushFee || 0}" required />
           </label>
         </div>
         <div class="field-grid">
-          <label class="field">
-            <span>Rush fee</span>
-            <input name="rushFee" type="number" min="0" step="0.01" value="${documentType?.rushFee || 0}" required />
-          </label>
           <label class="field">
             <span>Processing days</span>
             <input name="processingDays" type="number" min="1" max="60" value="${documentType?.processingDays || 3}" required />
@@ -502,7 +498,7 @@ function renderDocumentsSection(state) {
           {
             label: "Fees",
             render: (row) =>
-              `Base: ${escapeHTML(formatCurrency(row.baseFee))}<br><span class="muted">Copy: ${escapeHTML(formatCurrency(row.copyFee))} | Rush: ${escapeHTML(formatCurrency(row.rushFee))}</span>`,
+              `Base: ${escapeHTML(formatCurrency(row.baseFee))} / copy<br><span class="muted">Rush: +${escapeHTML(formatCurrency(row.rushFee))} / copy</span>`,
           },
           {
             label: "Processing",
@@ -675,34 +671,55 @@ function renderAuditTrailSection(state) {
   return `
     <section class="section-card">
       <div class="section-card__header">
-        <div><h3 class="section-card__title">Audit Trail</h3><p class="section-card__description">Complete log of all system activities and user actions.</p></div>
+        <div>
+          <h3 class="section-card__title">Audit Trail</h3>
+          <p class="section-card__description">Complete log of all system activities and user actions.</p>
+        </div>
       </div>
 
-      <form data-form="admin-audit-filters" class="filter-form" style="margin-bottom:1rem;">
-        <select name="action">
-          <option value="">All activities</option>
-          ${uniqueActions.map((a) => `<option value="${escapeHTML(a)}" ${auditFilters.action === a ? "selected" : ""}>${escapeHTML(labelize(a))}</option>`).join("")}
-        </select>
-        <input name="user" type="text" placeholder="Filter by user or email" value="${escapeHTML(auditFilters.user)}" />
-        <button type="button" data-action="admin-reset-audit-filters" class="button button--ghost">Clear</button>
-      </form>
+      <div class="filter-panel">
+        <form data-form="admin-audit-filters" class="filter-form">
+          <div class="filter-controls">
+            <label class="field">
+              <span>Activity type</span>
+              <select name="action">
+                <option value="">All activities</option>
+                ${uniqueActions.map((a) => `<option value="${escapeHTML(a)}" ${auditFilters.action === a ? "selected" : ""}>${escapeHTML(labelize(a))}</option>`).join("")}
+              </select>
+            </label>
+            <label class="field">
+              <span>User / Session</span>
+              <input name="user" type="text" placeholder="Name or email" value="${escapeHTML(auditFilters.user)}" />
+            </label>
+            <button class="button button--secondary" type="button" data-action="admin-reset-audit-filters">Reset</button>
+          </div>
+        </form>
+      </div>
 
       ${
         filtered.length
-          ? `<div class="stack">
-              ${filtered.map((log) => `
-                <article class="section-card">
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
-                    <div>
-                      <strong>${escapeHTML(labelize(log.action))}</strong>
-                      <p class="section-card__description">${escapeHTML(log.description)}</p>
-                    </div>
-                    <span class="muted" style="white-space:nowrap;font-size:0.75rem;">${escapeHTML(formatDateTime(log.created_at))}</span>
-                  </div>
-                  ${log.userName || log.userEmail ? `<span class="muted" style="font-size:0.75rem;">By: ${escapeHTML(log.userName || "")}${log.userEmail ? " (" + escapeHTML(log.userEmail) + ")" : ""}</span>` : ""}
-                </article>
-              `).join("")}
-            </div>`
+          ? renderTable({
+              rows: filtered,
+              cardTitle: (log) => escapeHTML(labelize(log.action)),
+              emptyTitle: "No matching activity",
+              emptyMessage: "Try adjusting the filters above.",
+              columns: [
+                {
+                  label: "Action",
+                  render: (log) => `<strong>${escapeHTML(labelize(log.action))}</strong><br><span class="muted">${escapeHTML(log.description)}</span>`,
+                },
+                {
+                  label: "User",
+                  render: (log) => log.userName
+                    ? `<strong>${escapeHTML(log.userName)}</strong><br><span class="muted">${escapeHTML(log.userEmail || "")}</span>`
+                    : `<span class="muted">${escapeHTML(log.userEmail || "System")}</span>`,
+                },
+                {
+                  label: "Date & Time",
+                  render: (log) => escapeHTML(formatDateTime(log.created_at)),
+                },
+              ],
+            })
           : renderEmptyState("No matching activity", "Try adjusting the filters above.")
       }
     </section>
@@ -942,7 +959,7 @@ createPortalApp({
         name: formData.get("name"),
         description: formData.get("description"),
         baseFee: formData.get("baseFee"),
-        copyFee: formData.get("copyFee"),
+        copyFee: "0",
         rushFee: formData.get("rushFee"),
         processingDays: formData.get("processingDays"),
         isActive: formData.get("isActive"),
@@ -995,21 +1012,24 @@ createPortalApp({
     if (formName === "admin-appointment-form") {
       const appointmentId = formData.get("appointmentId");
       const action = formData.get("action");
+      const remarks = (formData.get("remarks") || "").trim();
 
       if (!action) {
         helpers.showToast("Please select an action.", "error");
         return;
       }
 
+      if (action === "reject" && remarks.length < 4) {
+        helpers.showToast("Enter a rejection reason (at least 4 characters).", "error");
+        return;
+      }
+
       await helpers.api.patch(`/admin/appointments/${appointmentId}/status`, {
-        action: action,
-        remarks: formData.get("remarks"),
+        action,
+        remarks,
       });
       helpers.closeModal();
-      helpers.showToast(
-        `Appointment action "${action}" applied successfully.`,
-        "success",
-      );
+      helpers.showToast("Appointment updated successfully.", "success");
       await helpers.refresh({ silent: true });
       return;
     }

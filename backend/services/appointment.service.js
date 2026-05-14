@@ -64,6 +64,8 @@ function mapAppointmentRow(row) {
     studentIdentifier: row.student_identifier,
     documentTypeId: row.document_type_id,
     documentName: row.document_name,
+    baseFee: Number(row.base_fee),
+    rushFee: Number(row.rush_fee),
     appointmentDate: row.appointment_date,
     timeSlotId: row.time_slot_id,
     startTime: row.start_time,
@@ -223,9 +225,8 @@ async function getDateSlotLoad(date, executor = null) {
 }
 
 function calculateAppointmentAmount(document, copies, isRush) {
-  const copyTotal = document.copyFee * copies;
-  const rushTotal = isRush ? document.rushFee : 0;
-  const total = document.baseFee + copyTotal + rushTotal;
+  const perCopy = document.baseFee + (isRush ? document.rushFee : 0);
+  const total = perCopy * copies;
   return Number(total.toFixed(2));
 }
 

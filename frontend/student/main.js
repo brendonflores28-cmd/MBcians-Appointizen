@@ -54,8 +54,8 @@ function matchesAppointmentSearch(appointment, query, filters = {}) {
 function calculateDocumentFee(document, booking) {
   if (!document) return 0;
   const copies = Math.max(1, Number(booking.copies) || 1);
-  const rushFee = booking.isRush ? Number(document.rushFee) : 0;
-  return Number(document.baseFee) + Number(document.copyFee) * copies + rushFee;
+  const perCopy = Number(document.baseFee) + (booking.isRush ? Number(document.rushFee) : 0);
+  return perCopy * copies;
 }
 
 function getSelectedSlot(availability, timeSlotId) {
@@ -176,7 +176,12 @@ async function printReceipt(appointment, settings) {
   const logoDataUrl = await fetchLogoDataUrl();
   const date = formatDate(appointment.appointmentDate);
   const timeRange = formatTimeRange(appointment.startTime, appointment.endTime);
-  const amount = formatCurrency(appointment.payment?.amount || 0);
+  const totalAmount = appointment.payment?.amount || 0;
+  const copies = Number(appointment.copies) || 1;
+  const isRush = Boolean(appointment.isRush);
+  const baseFee = appointment.baseFee != null ? Number(appointment.baseFee) : null;
+  const rushFee = appointment.rushFee != null ? Number(appointment.rushFee) : null;
+  const amount = formatCurrency(totalAmount);
   const method = appointment.payment?.method === 'gcash' ? 'GCash (Online)' : 'Cash';
   const issuedOn = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
   const issuedTime = new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -559,6 +564,20 @@ async function printReceipt(appointment, settings) {
         </div>
       </div>
 
+      ${baseFee != null ? `
+      <div class="info-section">
+        <div class="info-section-title">Fee Breakdown</div>
+        <div class="info-row">
+          <span class="info-label">Base price ×${copies}</span>
+          <span class="info-value">${escapeHTML(formatCurrency(baseFee * copies))}</span>
+        </div>
+        ${isRush && rushFee != null ? `
+        <div class="info-row">
+          <span class="info-label">Rush fee ×${copies}</span>
+          <span class="info-value">${escapeHTML(formatCurrency(rushFee * copies))}</span>
+        </div>` : ''}
+      </div>` : ''}
+
       <div class="amount-section">
         <div>
           <div class="amount-label">Total Amount Paid</div>
@@ -743,7 +762,7 @@ function renderStudentBookSection(state) {
                 <span>Processing type</span>
                 <select name="isRush">
                   <option value="false" ${!booking.isRush ? 'selected' : ''}>Regular processing</option>
-                  <option value="true" ${booking.isRush ? 'selected' : ''}>Rush processing (+${escapeHTML(formatCurrency(document?.rushFee || 0))})</option>
+                  <option value="true" ${booking.isRush ? 'selected' : ''}>Rush processing (+${escapeHTML(formatCurrency(document?.rushFee || 0))} per copy)</option>
                 </select>
               </label>
 
@@ -768,9 +787,8 @@ function renderStudentBookSection(state) {
             </label>
 
             <article class="fee-summary-card">
-              <div class="fee-summary-card__row"><span>Base fee</span><strong>${escapeHTML(formatCurrency(document?.baseFee || 0))}</strong></div>
-              <div class="fee-summary-card__row"><span>Copy fee (×${escapeHTML(String(Math.max(1, Number(booking.copies) || 1)))})</span><strong>${escapeHTML(formatCurrency((document?.copyFee || 0) * Math.max(1, Number(booking.copies) || 1)))}</strong></div>
-              <div class="fee-summary-card__row"><span>Rush fee</span><strong>${escapeHTML(formatCurrency(booking.isRush ? document?.rushFee || 0 : 0))}</strong></div>
+              <div class="fee-summary-card__row"><span>Base price (×${escapeHTML(String(Math.max(1, Number(booking.copies) || 1)))} ${Math.max(1, Number(booking.copies) || 1) === 1 ? 'copy' : 'copies'})</span><strong>${escapeHTML(formatCurrency((document?.baseFee || 0) * Math.max(1, Number(booking.copies) || 1)))}</strong></div>
+              ${booking.isRush ? `<div class="fee-summary-card__row"><span>Rush fee (×${escapeHTML(String(Math.max(1, Number(booking.copies) || 1)))} ${Math.max(1, Number(booking.copies) || 1) === 1 ? 'copy' : 'copies'})</span><strong>${escapeHTML(formatCurrency((document?.rushFee || 0) * Math.max(1, Number(booking.copies) || 1)))}</strong></div>` : ''}
               <div class="fee-summary-card__row fee-summary-card__row--total"><span>Total estimate</span><strong>${escapeHTML(formatCurrency(totalAmount))}</strong></div>
             </article>
           </div>
