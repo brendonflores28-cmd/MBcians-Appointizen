@@ -80,8 +80,8 @@ function renderHeadTable(appointments) {
         )}</span>`,
       },
       {
-        label: 'Progress',
-        render: (row) => `${statusBadge(row.status)}<br><span class="muted">${statusBadge(row.paymentStatus)}</span>`,
+        label: 'Status',
+        render: (row) => statusBadge(row.status),
       },
       {
         label: 'Staff',
@@ -256,6 +256,7 @@ createPortalApp({
     }
 
     const pending = appointments.filter((appointment) => appointment.status === 'pending');
+    const rushPending = pending.filter((appointment) => appointment.isRush);
 
     return `
       ${renderStatCards([
@@ -270,11 +271,11 @@ createPortalApp({
         <article class="section-card">
           <div class="section-card__header">
             <div>
-              <h3 class="section-card__title">Priority queue</h3>
-              <p class="section-card__description">The newest pending requests should be reviewed first.</p>
+              <h3 class="section-card__title">Priority queue <span class="status-pill status-pill--warning" style="font-size:0.78rem;vertical-align:middle;">Rush only</span></h3>
+              <p class="section-card__description">Only rush requests appear here. Non-rush requests are in the full list below.</p>
             </div>
           </div>
-          ${renderHeadTable(pending.slice(0, 4))}
+          ${rushPending.length ? renderHeadTable(rushPending.slice(0, 4)) : renderEmptyState('No rush requests pending', 'All pending rush appointments have been reviewed.')}
         </article>
 
         <article class="section-card section-card--soft">

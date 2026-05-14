@@ -8,22 +8,19 @@ const NAV_ITEMS = [
   { id: 'payments', label: 'Payments', icon: 'wallet' },
 ];
 
-function matchesSearch(appointment, query) {
-  if (!query) {
-    return true;
-  }
+function matchesSearch(appointment, query, filters = {}) {
+  if (filters.status && appointment.status !== filters.status) return false;
+  if (filters.dateFrom && appointment.appointmentDate < filters.dateFrom) return false;
+  if (filters.dateTo && appointment.appointmentDate > filters.dateTo) return false;
 
+  if (!query) return true;
   const haystack = [
     appointment.referenceNo,
     appointment.studentName,
     appointment.documentName,
     appointment.status,
     appointment.payment?.method,
-    appointment.payment?.status,
-  ]
-    .join(' ')
-    .toLowerCase();
-
+  ].join(' ').toLowerCase();
   return haystack.includes(query.toLowerCase());
 }
 
@@ -70,7 +67,7 @@ function renderPaymentTable(appointments) {
       },
       {
         label: 'Status',
-        render: (row) => `${statusBadge(row.status)}<br><span class="muted">${statusBadge(row.payment?.status || row.paymentStatus)}</span>`,
+        render: (row) => statusBadge(row.status),
       },
       {
         label: 'Actions',
@@ -166,6 +163,9 @@ createPortalApp({
   heroDescription: 'Cashier decisions update student and staff dashboards instantly, helping the registrar workflow move without page reloads.',
   navItems: NAV_ITEMS,
   defaultSection: 'overview',
+  initialState: {
+    filters: { status: '', dateFrom: '', dateTo: '' },
+  },
   primaryAction: {
     label: 'Open Payments Queue',
     icon: 'wallet',
@@ -181,7 +181,8 @@ createPortalApp({
       return renderEmptyState('Loading', 'Preparing cashier records...');
     }
 
-    const appointments = state.dashboard.appointments.filter((appointment) => matchesSearch(appointment, state.searchQuery));
+    const filters = state.filters || {};
+    const appointments = state.dashboard.appointments.filter((appointment) => matchesSearch(appointment, state.searchQuery, filters));
     const cancelledCount = appointments.filter((appointment) => appointment.status === 'cancelled').length;
 
     if (state.activeSection === 'payments') {
@@ -193,6 +194,36 @@ createPortalApp({
               <p class="section-card__description">Approve or reject submitted payment proofs while still seeing every appointment record tied to each student.</p>
             </div>
           </div>
+
+          <div class="filter-panel">
+            <form data-form="cashier-filters" class="filter-form">
+              <div class="filter-controls">
+                <label class="field">
+                  <span>Appointment status</span>
+                  <select name="status">
+                    <option value="">All statuses</option>
+                    <option value="pending" ${filters.status === 'pending' ? 'selected' : ''}>Pending</option>
+                    <option value="approved" ${filters.status === 'approved' ? 'selected' : ''}>Approved</option>
+                    <option value="assigned" ${filters.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+                    <option value="processing" ${filters.status === 'processing' ? 'selected' : ''}>Processing</option>
+                    <option value="completed" ${filters.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    <option value="rejected" ${filters.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+                    <option value="cancelled" ${filters.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Date from</span>
+                  <input type="date" name="dateFrom" value="${filters.dateFrom || ''}" />
+                </label>
+                <label class="field">
+                  <span>Date to</span>
+                  <input type="date" name="dateTo" value="${filters.dateTo || ''}" />
+                </label>
+                <button class="button button--secondary" type="button" data-action="cashier-reset-filters">Reset</button>
+              </div>
+            </form>
+          </div>
+
           ${renderPaymentTable(appointments)}
         </section>
       `;
@@ -234,8 +265,11 @@ createPortalApp({
     `;
   },
   async handleAction(action, button, helpers) {
+    if (action === 'cashier-reset-filters') {
+      helpers.setState((s) => ({ ...s, filters: { status: '', dateFrom: '', dateTo: '' } }));
+      return;
+    }
     const appointment = helpers.getState().dashboard.appointments.find((item) => Number(item.id) === Number(button.dataset.id));
-
     if (action === 'cashier-review' && appointment) {
       openReviewModal(helpers, appointment);
     }
@@ -250,6 +284,19 @@ createPortalApp({
         rejectionField.required = shouldShow;
       }
     }
+  },
+  async handleChange(target, helpers) {
+    const form = target.closest('form[data-form="cashier-filters"]');
+    if (!form) return;
+    const formData = new FormData(form);
+    helpers.setState((s) => ({
+      ...s,
+      filters: {
+        status: formData.get('status') || '',
+        dateFrom: formData.get('dateFrom') || '',
+        dateTo: formData.get('dateTo') || '',
+      },
+    }));
   },
   async handleSubmit(formName, form, helpers) {
     if (formName !== 'cashier-review-form') {

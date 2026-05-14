@@ -273,6 +273,42 @@ async function createTimeSlot(req, res) {
   res.status(201).json({ message: "Time slot added successfully." });
 }
 
+async function updateTimeSlot(req, res) {
+  const timeSlotId = normalizeInteger(req.params.id, "Time slot", { min: 1 });
+  const startTime = normalizeTime(req.body.startTime, "Start time");
+  const endTime = normalizeTime(req.body.endTime, "End time");
+  const maxAppointments = normalizeInteger(
+    req.body.maxAppointments,
+    "Max appointments",
+    { min: 1, max: 100 },
+  );
+  const isActive = normalizeBoolean(req.body.isActive ?? true);
+
+  assert(endTime > startTime, "End time must be later than the start time.");
+
+  const existing = await queryOne("SELECT id FROM time_slots WHERE id = ?", [timeSlotId]);
+  assert(existing, "Time slot not found.", 404);
+
+  const overlap = await queryOne(
+    `SELECT id FROM time_slots WHERE start_time < ? AND end_time > ? AND id != ? LIMIT 1`,
+    [endTime, startTime, timeSlotId],
+  );
+  assert(!overlap, "This time slot overlaps with an existing schedule window.");
+
+  await query(
+    `UPDATE time_slots SET start_time = ?, end_time = ?, max_appointments = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    [startTime, endTime, maxAppointments, isActive ? 1 : 0, timeSlotId],
+  );
+
+  emitToRecipients(
+    SOCKET_EVENTS.CATALOG_CHANGED,
+    { area: "time_slots", action: "updated", id: timeSlotId },
+    { roles: [ROLES.ADMIN, ROLES.STUDENT] },
+  );
+
+  res.json({ message: "Time slot updated successfully." });
+}
+
 async function deleteTimeSlot(req, res) {
   const timeSlotId = normalizeInteger(req.params.id, "Time slot", { min: 1 });
   const usage = await queryOne(
@@ -684,6 +720,7 @@ module.exports = {
   updateDocumentType,
   deleteDocumentType,
   createTimeSlot,
+  updateTimeSlot,
   deleteTimeSlot,
   createBlockedDate,
   deleteBlockedDate,

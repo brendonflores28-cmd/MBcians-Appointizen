@@ -366,6 +366,10 @@ export function createPortalApp(config) {
                 <strong>${escapeHTML(displayName)}</strong>
                 <span class="user-chip__role">${escapeHTML(chipRoleLabel)}</span>
               </div>
+
+              <button class="icon-button topbar-signout" type="button" data-action="logout" title="Sign out" aria-label="Sign out">
+                ${icon("logout")}
+              </button>
             </div>
           </header>
 

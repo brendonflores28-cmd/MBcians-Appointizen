@@ -20,6 +20,7 @@ router.delete(
   asyncHandler(adminController.deleteDocumentType),
 );
 router.post("/time-slots", asyncHandler(adminController.createTimeSlot));
+router.put("/time-slots/:id", asyncHandler(adminController.updateTimeSlot));
 router.delete("/time-slots/:id", asyncHandler(adminController.deleteTimeSlot));
 router.post("/blocked-dates", asyncHandler(adminController.createBlockedDate));
 router.delete(

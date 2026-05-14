@@ -8,21 +8,18 @@ const NAV_ITEMS = [
   { id: 'queue', label: 'Requests Queue', icon: 'file' },
 ];
 
-function matchesSearch(appointment, query) {
-  if (!query) {
-    return true;
-  }
+function matchesSearch(appointment, query, filters = {}) {
+  if (filters.status && appointment.status !== filters.status) return false;
+  if (filters.dateFrom && appointment.appointmentDate < filters.dateFrom) return false;
+  if (filters.dateTo && appointment.appointmentDate > filters.dateTo) return false;
 
+  if (!query) return true;
   const haystack = [
     appointment.referenceNo,
     appointment.studentName,
     appointment.documentName,
     appointment.status,
-    appointment.paymentStatus,
-  ]
-    .join(' ')
-    .toLowerCase();
-
+  ].join(' ').toLowerCase();
   return haystack.includes(query.toLowerCase());
 }
 
@@ -79,7 +76,7 @@ function renderStaffTable(appointments) {
       },
       {
         label: 'Status',
-        render: (row) => `${statusBadge(row.status)}<br><span class="muted">${statusBadge(row.paymentStatus)}</span>`,
+        render: (row) => statusBadge(row.status),
       },
       {
         label: 'Actions',
@@ -110,7 +107,6 @@ function openProcessModal(helpers, appointment) {
               formatTimeRange(appointment.startTime, appointment.endTime)
             )}</strong></div>
             <div class="info-list__item"><span>Status</span><strong>${statusBadge(appointment.status)}</strong></div>
-            <div class="info-list__item"><span>Payment</span><strong>${statusBadge(appointment.paymentStatus)}</strong></div>
           </div>
         </article>
 
@@ -146,6 +142,9 @@ createPortalApp({
   heroDescription: 'Every student-facing update you trigger here is reflected instantly across the student, cashier, and head dashboards.',
   navItems: NAV_ITEMS,
   defaultSection: 'overview',
+  initialState: {
+    filters: { status: '', dateFrom: '', dateTo: '' },
+  },
   primaryAction: {
     label: 'Open Queue',
     icon: 'file',
@@ -161,7 +160,8 @@ createPortalApp({
       return renderEmptyState('Loading', 'Preparing staff queue...');
     }
 
-    const appointments = state.dashboard.appointments.filter((appointment) => matchesSearch(appointment, state.searchQuery));
+    const filters = state.filters || {};
+    const appointments = state.dashboard.appointments.filter((appointment) => matchesSearch(appointment, state.searchQuery, filters));
 
     if (state.activeSection === 'queue') {
       return `
@@ -172,6 +172,36 @@ createPortalApp({
               <p class="section-card__description">Assigned, available, and recently cancelled items stay here so staff always see the current workflow state.</p>
             </div>
           </div>
+
+          <div class="filter-panel">
+            <form data-form="staff-filters" class="filter-form">
+              <div class="filter-controls">
+                <label class="field">
+                  <span>Status</span>
+                  <select name="status">
+                    <option value="">All statuses</option>
+                    <option value="pending" ${filters.status === 'pending' ? 'selected' : ''}>Pending</option>
+                    <option value="approved" ${filters.status === 'approved' ? 'selected' : ''}>Approved</option>
+                    <option value="assigned" ${filters.status === 'assigned' ? 'selected' : ''}>Assigned</option>
+                    <option value="processing" ${filters.status === 'processing' ? 'selected' : ''}>Processing</option>
+                    <option value="completed" ${filters.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    <option value="rejected" ${filters.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+                    <option value="cancelled" ${filters.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Date from</span>
+                  <input type="date" name="dateFrom" value="${filters.dateFrom || ''}" />
+                </label>
+                <label class="field">
+                  <span>Date to</span>
+                  <input type="date" name="dateTo" value="${filters.dateTo || ''}" />
+                </label>
+                <button class="button button--secondary" type="button" data-action="staff-reset-filters">Reset</button>
+              </div>
+            </form>
+          </div>
+
           ${renderStaffTable(appointments)}
         </section>
       `;
@@ -214,6 +244,10 @@ createPortalApp({
     `;
   },
   async handleAction(action, button, helpers) {
+    if (action === 'staff-reset-filters') {
+      helpers.setState((s) => ({ ...s, filters: { status: '', dateFrom: '', dateTo: '' } }));
+      return;
+    }
     const appointment = helpers.getState().dashboard.appointments.find((item) => Number(item.id) === Number(button.dataset.id));
     if (action === 'staff-open-process' && appointment) {
       openProcessModal(helpers, appointment);
@@ -232,5 +266,18 @@ createPortalApp({
     helpers.closeModal();
     helpers.showToast(`Staff action "${labelize(formData.get('action'))}" applied successfully.`, 'success');
     await helpers.refresh({ silent: true });
+  },
+  async handleChange(target, helpers) {
+    const form = target.closest('form[data-form="staff-filters"]');
+    if (!form) return;
+    const formData = new FormData(form);
+    helpers.setState((s) => ({
+      ...s,
+      filters: {
+        status: formData.get('status') || '',
+        dateFrom: formData.get('dateFrom') || '',
+        dateTo: formData.get('dateTo') || '',
+      },
+    }));
   },
 });

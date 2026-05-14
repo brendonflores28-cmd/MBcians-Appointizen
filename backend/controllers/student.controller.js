@@ -3,7 +3,6 @@ const {
   queryOne,
   withTransaction,
 } = require('../db');
-const { randomBytes } = require('crypto');
 const AppError = require('../utils/AppError');
 const {
   APPOINTMENT_STATUSES,
@@ -25,7 +24,7 @@ const {
 const { serializeSettings } = require('../utils/serializers');
 const { writeActivityLog } = require('../utils/audit');
 const { fileToDataUrl } = require('../utils/paymentProof');
-const { getCurrentDateStamp, getCurrentDateString } = require('../utils/runtime');
+const { getCurrentDateString } = require('../utils/runtime');
 const {
   getActiveDocuments,
   getActiveTimeSlots,
@@ -38,8 +37,26 @@ const {
 } = require('../services/appointment.service');
 const { emitToRecipients, notifyRoles } = require('../services/notification.service');
 
-function generateReferenceNo() {
-  return `APT-${getCurrentDateStamp()}-${randomBytes(3).toString('hex').toUpperCase()}`;
+async function generateReferenceNo(studentUserId, studentIdentifier) {
+  const APP_TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Manila';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: APP_TIMEZONE,
+    month: '2-digit',
+    day: '2-digit',
+    year: '2-digit',
+  }).formatToParts(new Date()).reduce((acc, p) => {
+    if (p.type !== 'literal') acc[p.type] = p.value;
+    return acc;
+  }, {});
+  const datePart = `${parts.month}${parts.day}${parts.year}`;
+
+  const countRow = await queryOne(
+    'SELECT COUNT(*) AS total FROM appointments WHERE student_id = ?',
+    [studentUserId]
+  );
+  const seq = Number(countRow?.total || 0) + 1;
+  const cleanId = studentIdentifier ? String(studentIdentifier).trim() : 'UNKNOWN';
+  return `APT-${datePart}-${cleanId}-${seq}`;
 }
 
 async function getDashboard(req, res) {
@@ -176,9 +193,9 @@ async function createAppointment(req, res) {
   const initialAppointmentPaymentStatus =
     paymentMethod === PAYMENT_METHODS.GCASH ? PAYMENT_STATUSES.FOR_VERIFICATION : 'unpaid';
   const proofImage = req.file ? fileToDataUrl(req.file) : null;
+  const referenceNo = await generateReferenceNo(req.user.id, req.user.studentId);
 
   const appointment = await withTransaction(async (connection) => {
-    const referenceNo = generateReferenceNo();
     const [[lockedTimeSlot]] = await connection.execute(
       'SELECT id, max_appointments FROM time_slots WHERE id = ? AND is_active = 1 FOR UPDATE',
       [timeSlotId]

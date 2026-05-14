@@ -32,8 +32,9 @@ function includesSearch(values, query) {
 }
 
 function getVisibleAppointments(state) {
-  return state.dashboard.appointments.filter((appointment) =>
-    includesSearch(
+  const filters = state.filters || {};
+  return state.dashboard.appointments.filter((appointment) => {
+    if (!includesSearch(
       [
         appointment.referenceNo,
         appointment.studentName,
@@ -41,11 +42,14 @@ function getVisibleAppointments(state) {
         appointment.status,
         appointment.payment?.method || "",
         appointment.payment?.referenceNumber || "",
-        appointment.paymentStatus,
       ],
       state.searchQuery,
-    ),
-  );
+    )) return false;
+    if (filters.status && appointment.status !== filters.status) return false;
+    if (filters.dateFrom && appointment.appointmentDate < filters.dateFrom) return false;
+    if (filters.dateTo && appointment.appointmentDate > filters.dateTo) return false;
+    return true;
+  });
 }
 
 function openDocumentModal(helpers, documentType = null) {
@@ -108,28 +112,40 @@ function openDocumentModal(helpers, documentType = null) {
   });
 }
 
-function openTimeSlotModal(helpers) {
+function openTimeSlotModal(helpers, slot = null) {
   helpers.openModal({
-    title: "Add time slot",
-    description: "Create another appointment window for student bookings.",
+    title: slot ? "Edit time slot" : "Add time slot",
+    description: slot
+      ? "Update the appointment window, capacity, or availability."
+      : "Create another appointment window for student bookings.",
     content: `
       <form data-form="admin-time-slot-form" class="stack">
+        <input type="hidden" name="slotId" value="${slot?.id || ""}" />
         <div class="field-grid">
           <label class="field">
             <span>Start time</span>
-            <input name="startTime" type="time" required />
+            <input name="startTime" type="time" value="${slot?.startTime || ""}" required />
           </label>
           <label class="field">
             <span>End time</span>
-            <input name="endTime" type="time" required />
+            <input name="endTime" type="time" value="${slot?.endTime || ""}" required />
           </label>
         </div>
         <label class="field">
           <span>Max appointments</span>
-          <input name="maxAppointments" type="number" min="1" max="100" value="8" required />
+          <input name="maxAppointments" type="number" min="1" max="100" value="${slot?.maxAppointments || 8}" required />
         </label>
+        ${slot ? `
+          <label class="field">
+            <span>Availability</span>
+            <select name="isActive">
+              <option value="true" ${slot.isActive ? "selected" : ""}>Active</option>
+              <option value="false" ${!slot.isActive ? "selected" : ""}>Inactive</option>
+            </select>
+          </label>
+        ` : ""}
         <div class="inline-actions">
-          <button class="button button--primary" type="submit">Add slot</button>
+          <button class="button button--primary" type="submit">${slot ? "Save changes" : "Add slot"}</button>
           <button class="button button--ghost" type="button" data-close-modal>Cancel</button>
         </div>
       </form>
@@ -163,6 +179,7 @@ function openBlockedDateModal(helpers) {
 
 function renderAppointmentsSection(state) {
   const rows = getVisibleAppointments(state);
+  const filters = state.filters || {};
 
   return `
     <section class="section-card">
@@ -170,6 +187,35 @@ function renderAppointmentsSection(state) {
         <div>
           <h3 class="section-card__title">All appointments</h3>
         </div>
+      </div>
+
+      <div class="filter-panel">
+        <form data-form="admin-filters" class="filter-form">
+          <div class="filter-controls">
+            <label class="field">
+              <span>Status</span>
+              <select name="status">
+                <option value="">All statuses</option>
+                <option value="pending" ${filters.status === "pending" ? "selected" : ""}>Pending</option>
+                <option value="approved" ${filters.status === "approved" ? "selected" : ""}>Approved</option>
+                <option value="assigned" ${filters.status === "assigned" ? "selected" : ""}>Assigned</option>
+                <option value="processing" ${filters.status === "processing" ? "selected" : ""}>Processing</option>
+                <option value="completed" ${filters.status === "completed" ? "selected" : ""}>Completed</option>
+                <option value="rejected" ${filters.status === "rejected" ? "selected" : ""}>Rejected</option>
+                <option value="cancelled" ${filters.status === "cancelled" ? "selected" : ""}>Cancelled</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Date from</span>
+              <input type="date" name="dateFrom" value="${filters.dateFrom || ""}" />
+            </label>
+            <label class="field">
+              <span>Date to</span>
+              <input type="date" name="dateTo" value="${filters.dateTo || ""}" />
+            </label>
+            <button class="button button--secondary" type="button" data-action="admin-reset-filters">Reset</button>
+          </div>
+        </form>
       </div>
       ${renderTable({
         rows,
@@ -200,8 +246,7 @@ function renderAppointmentsSection(state) {
           },
           {
             label: "Status",
-            render: (row) =>
-              `${statusBadge(row.status)}<br><span class="muted">${statusBadge(row.paymentStatus)}</span>`,
+            render: (row) => statusBadge(row.status),
           },
           {
             label: "Payment",
@@ -284,7 +329,6 @@ function openAdminAppointmentModal(helpers, appointment) {
               formatTimeRange(appointment.startTime, appointment.endTime),
             )}</strong></div>
             <div class="info-list__item"><span>Status</span><strong>${statusBadge(appointment.status)}</strong></div>
-            <div class="info-list__item"><span>Payment</span><strong>${statusBadge(appointment.paymentStatus)}</strong></div>
             <div class="info-list__item"><span>Amount</span><strong>${escapeHTML(formatCurrency(appointment.payment?.amount || 0))}</strong></div>
             <div class="info-list__item"><span>Payment method</span><strong>${escapeHTML(
               appointment.payment?.method?.toUpperCase() || "N/A",
@@ -539,8 +583,12 @@ function renderTimeSlotsSection(state) {
           },
           {
             label: "Actions",
-            render: (row) =>
-              `<button class="button button--danger" type="button" data-action="admin-delete-time-slot" data-id="${row.id}">Delete</button>`,
+            render: (row) => `
+              <div class="inline-actions">
+                <button class="button button--secondary" type="button" data-action="admin-edit-time-slot" data-id="${row.id}">Edit</button>
+                <button class="button button--danger" type="button" data-action="admin-delete-time-slot" data-id="${row.id}">Delete</button>
+              </div>
+            `,
           },
         ],
       })}
@@ -711,6 +759,9 @@ createPortalApp({
   heroTitle: "System administration",
   navItems: NAV_ITEMS,
   defaultSection: "overview",
+  initialState: {
+    filters: { status: "", dateFrom: "", dateTo: "" },
+  },
   primaryAction: {
     label: "Add Document Type",
     icon: "plus",
@@ -753,6 +804,24 @@ createPortalApp({
 
     if (action === "admin-add-time-slot") {
       openTimeSlotModal(helpers);
+      return;
+    }
+
+    if (action === "admin-edit-time-slot") {
+      const slot = state.dashboard.timeSlots.find(
+        (item) => Number(item.id) === Number(button.dataset.id),
+      );
+      if (slot) {
+        openTimeSlotModal(helpers, slot);
+      }
+      return;
+    }
+
+    if (action === "admin-reset-filters") {
+      helpers.setState((current) => ({
+        ...current,
+        filters: { status: "", dateFrom: "", dateTo: "" },
+      }));
       return;
     }
 
@@ -857,13 +926,21 @@ createPortalApp({
     }
 
     if (formName === "admin-time-slot-form") {
-      await helpers.api.post("/admin/time-slots", {
+      const slotId = formData.get("slotId");
+      const payload = {
         startTime: formData.get("startTime"),
         endTime: formData.get("endTime"),
         maxAppointments: formData.get("maxAppointments"),
-      });
+        isActive: formData.get("isActive") ?? "true",
+      };
+      if (slotId) {
+        await helpers.api.put(`/admin/time-slots/${slotId}`, payload);
+        helpers.showToast("Time slot updated successfully.", "success");
+      } else {
+        await helpers.api.post("/admin/time-slots", payload);
+        helpers.showToast("Time slot added successfully.", "success");
+      }
       helpers.closeModal();
-      helpers.showToast("Time slot added successfully.", "success");
       await helpers.refresh({ silent: true });
       return;
     }
@@ -915,5 +992,18 @@ createPortalApp({
       helpers.showToast("System settings updated successfully.", "success");
       await helpers.refresh({ silent: true });
     }
+  },
+  async handleChange(target, helpers) {
+    const form = target.closest('form[data-form="admin-filters"]');
+    if (!form) return;
+    const formData = new FormData(form);
+    helpers.setState((current) => ({
+      ...current,
+      filters: {
+        status: formData.get("status") || "",
+        dateFrom: formData.get("dateFrom") || "",
+        dateTo: formData.get("dateTo") || "",
+      },
+    }));
   },
 });
