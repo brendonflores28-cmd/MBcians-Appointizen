@@ -13,6 +13,14 @@ const NAV_ITEMS = [
 const CANCELLABLE_STATUSES = ['pending', 'approved', 'assigned', 'processing'];
 const PAYMENT_READY_STATUSES = ['approved', 'assigned', 'processing'];
 const PURPOSE_OTHER_OPTION = 'Other';
+const CALENDAR_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CALENDAR_MONTH_FORMATTER = new Intl.DateTimeFormat('en-PH', { month: 'long', year: 'numeric' });
+const CALENDAR_DAY_FORMATTER = new Intl.DateTimeFormat('en-PH', {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+});
 const DOCUMENT_PURPOSE_OPTIONS = {
   'certificate of enrollment': [
     'Scholarship Requirement',
@@ -86,6 +94,7 @@ function buildDefaultBooking(settings, documents) {
     purpose: '',
     purposeOther: '',
     remarks: '',
+    calendarMonth: getCalendarMonthValue(new Date()),
     paymentMethod: preferredMethod,
     referenceNumber: '',
     appointmentDate: '',
@@ -116,6 +125,125 @@ function getSelectedPurposeValue(booking, purposeOptions) {
 function getPurposeOtherValue(booking, purposeOptions) {
   if (getSelectedPurposeValue(booking, purposeOptions) !== PURPOSE_OTHER_OPTION) return '';
   return String(booking.purposeOther || (booking.purpose === PURPOSE_OTHER_OPTION ? '' : booking.purpose) || '');
+}
+
+function padDatePart(value) {
+  return String(value).padStart(2, '0');
+}
+
+function formatDateInputValue(date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+}
+
+function parseDateInputValue(value) {
+  const [year, month, day] = String(value || '').split('-').map(Number);
+  if (!year || !month || !day) return null;
+
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+
+  return date;
+}
+
+function getCalendarMonthValue(date) {
+  return formatDateInputValue(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+function addCalendarMonths(date, offset) {
+  return new Date(date.getFullYear(), date.getMonth() + offset, 1);
+}
+
+function getCalendarMonthDate(booking) {
+  const selectedDate = parseDateInputValue(booking.appointmentDate);
+  const calendarMonth = parseDateInputValue(booking.calendarMonth);
+  const sourceDate = calendarMonth || selectedDate || new Date();
+  return new Date(sourceDate.getFullYear(), sourceDate.getMonth(), 1);
+}
+
+function renderBookingCalendar(booking) {
+  const today = new Date();
+  const todayValue = formatDateInputValue(today);
+  const currentMonthValue = getCalendarMonthValue(today);
+  const selectedDate = parseDateInputValue(booking.appointmentDate);
+  const selectedValue = selectedDate ? formatDateInputValue(selectedDate) : '';
+  const monthDate = getCalendarMonthDate(booking);
+  const previousMonthDate = addCalendarMonths(monthDate, -1);
+  const nextMonthDate = addCalendarMonths(monthDate, 1);
+  const previousMonthValue = getCalendarMonthValue(previousMonthDate);
+  const nextMonthValue = getCalendarMonthValue(nextMonthDate);
+  const canGoPrevious = previousMonthValue >= currentMonthValue;
+  const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+  const firstWeekday = monthDate.getDay();
+  const cells = [];
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    cells.push('<div class="booking-calendar__empty" aria-hidden="true"></div>');
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const cellDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+    const dateValue = formatDateInputValue(cellDate);
+    const isPast = dateValue < todayValue;
+    const isToday = dateValue === todayValue;
+    const isSelected = dateValue === selectedValue;
+    const classes = [
+      'booking-calendar__day',
+      isPast ? 'is-disabled' : '',
+      isToday ? 'is-today' : '',
+      isSelected ? 'is-selected' : '',
+    ].filter(Boolean).join(' ');
+
+    cells.push(`
+      <button
+        class="${classes}"
+        type="button"
+        data-action="student-calendar-select-date"
+        data-date="${escapeHTML(dateValue)}"
+        aria-label="${escapeHTML(CALENDAR_DAY_FORMATTER.format(cellDate))}"
+        aria-pressed="${isSelected ? 'true' : 'false'}"
+        ${isPast ? 'disabled' : ''}
+      >
+        <span>${day}</span>
+      </button>
+    `);
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push('<div class="booking-calendar__empty" aria-hidden="true"></div>');
+  }
+
+  return `
+    <section class="booking-calendar" aria-label="Appointment date calendar">
+      <input type="hidden" name="appointmentDate" value="${escapeHTML(selectedValue)}" />
+      <div class="booking-calendar__header">
+        <button
+          class="booking-calendar__nav"
+          type="button"
+          data-action="student-calendar-prev-month"
+          data-month="${escapeHTML(previousMonthValue)}"
+          aria-label="Previous month"
+          ${canGoPrevious ? '' : 'disabled'}
+        >‹</button>
+        <div>
+          <strong>${escapeHTML(CALENDAR_MONTH_FORMATTER.format(monthDate))}</strong>
+          <span>${selectedDate ? escapeHTML(CALENDAR_DAY_FORMATTER.format(selectedDate)) : 'Choose your appointment date'}</span>
+        </div>
+        <button
+          class="booking-calendar__nav"
+          type="button"
+          data-action="student-calendar-next-month"
+          data-month="${escapeHTML(nextMonthValue)}"
+          aria-label="Next month"
+        >›</button>
+      </div>
+      <div class="booking-calendar__weekdays">
+        ${CALENDAR_WEEKDAYS.map((day) => `<span>${escapeHTML(day)}</span>`).join('')}
+      </div>
+      <div class="booking-calendar__grid">
+        ${cells.join('')}
+      </div>
+    </section>
+  `;
 }
 
 function getPaymentChoices(settings) {
@@ -178,16 +306,24 @@ async function loadAvailability(helpers, appointmentDate) {
     helpers.setState({
       availability: null,
       availabilityLoading: false,
-      booking: { ...helpers.getState().booking, appointmentDate: '', timeSlotId: '' },
+      booking: {
+        ...helpers.getState().booking,
+        appointmentDate: '',
+        timeSlotId: '',
+        calendarMonth: getCalendarMonthValue(new Date()),
+      },
     });
     return;
   }
+
+  const selectedDate = parseDateInputValue(appointmentDate);
+  const calendarMonth = getCalendarMonthValue(selectedDate || new Date());
 
   helpers.setState((current) => ({
     ...current,
     availability: null,
     availabilityLoading: true,
-    booking: { ...current.booking, appointmentDate, timeSlotId: '' },
+    booking: { ...current.booking, appointmentDate, timeSlotId: '', calendarMonth },
   }));
 
   try {
@@ -196,7 +332,7 @@ async function loadAvailability(helpers, appointmentDate) {
       ...current,
       availability,
       availabilityLoading: false,
-      booking: { ...current.booking, appointmentDate, timeSlotId: '' },
+      booking: { ...current.booking, appointmentDate, timeSlotId: '', calendarMonth },
     }));
     if (availability.blocked) {
       helpers.showToast(availability.reason || 'Selected date is blocked.', 'warning');
@@ -206,7 +342,7 @@ async function loadAvailability(helpers, appointmentDate) {
       ...current,
       availability: null,
       availabilityLoading: false,
-      booking: { ...current.booking, appointmentDate, timeSlotId: '' },
+      booking: { ...current.booking, appointmentDate, timeSlotId: '', calendarMonth },
     }));
     helpers.showToast(error.message || 'Unable to load time slots for that date.', 'error');
   }
@@ -901,19 +1037,12 @@ function renderStudentBookSection(state) {
           <div class="floating-form__divider"></div>
 
           <div class="floating-form__section">
-            <div class="field-grid">
-              <label class="field">
+            <div class="field-grid booking-schedule-grid">
+              <div class="field">
                 <span>Appointment date</span>
-                <input name="appointmentDate" type="date"
-                  value="${escapeHTML(booking.appointmentDate || '')}"
-                  min="${new Date().toISOString().slice(0, 10)}"
-                  autocomplete="off"
-                  data-booking-date
-                  data-date-picker
-                  required
-                />
-                <small class="field-hint">Use the calendar picker.</small>
-              </label>
+                ${renderBookingCalendar(booking)}
+                <small class="field-hint">Select a date from the calendar below.</small>
+              </div>
 
               <article class="section-card section-card--soft">
                 <div class="info-list">
@@ -928,7 +1057,7 @@ function renderStudentBookSection(state) {
             ${availabilityLoading
               ? renderEmptyState('Loading time slots', 'Checking availability for the selected date...')
               : !booking.appointmentDate
-                ? renderEmptyState('Choose a date first', 'Select a date above to load available time slots.')
+                ? renderEmptyState('Choose a date first', 'Select a date on the calendar to load available time slots.')
                 : availability?.blocked
                   ? renderEmptyState('Date is unavailable', availability.reason || 'Please choose a different date.')
                   : availability
@@ -1289,6 +1418,25 @@ createPortalApp({
       return;
     }
 
+    if (action === 'student-calendar-prev-month' || action === 'student-calendar-next-month') {
+      const calendarMonth = button.dataset.month;
+      if (calendarMonth) {
+        helpers.setState((current) => ({
+          ...current,
+          booking: { ...current.booking, calendarMonth },
+        }));
+      }
+      return;
+    }
+
+    if (action === 'student-calendar-select-date') {
+      const appointmentDate = button.dataset.date;
+      if (appointmentDate) {
+        await loadAvailability(helpers, appointmentDate);
+      }
+      return;
+    }
+
     if (action === 'qty-decrease') {
       const input = document.querySelector('[data-copies-input]');
       const current = Math.max(1, Number(input?.value) || 1);
@@ -1399,11 +1547,6 @@ createPortalApp({
     }
   },
   async handleChange(target, helpers) {
-    if (target.matches('[data-booking-date]')) {
-      await loadAvailability(helpers, target.value);
-      return;
-    }
-
     if (target.matches('input[name="timeSlotId"]') && target.closest('form[data-form="student-booking-step-1"]')) {
       helpers.setState((current) => ({
         ...current,
@@ -1571,12 +1714,4 @@ createPortalApp({
       await helpers.refresh({ silent: true });
     }
   },
-});
-
-document.addEventListener('keydown', (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement) || !target.matches('[data-date-picker]')) return;
-  if (event.key === 'Tab') return;
-  event.preventDefault();
-  if (typeof target.showPicker === 'function') target.showPicker();
 });
