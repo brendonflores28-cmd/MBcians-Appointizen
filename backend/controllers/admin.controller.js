@@ -519,6 +519,7 @@ async function updateAppointmentStatus(req, res) {
   let nextPaymentStatus = appointment.paymentStatus;
   let nextAssignedStaffId = appointment.assignedStaffId;
   let nextRejectionReason = appointment.rejectionReason;
+  let nextPaymentRecordStatus = null;
   let paymentHistoryNote = null;
   let activityAction = null;
   let description = null;
@@ -544,11 +545,11 @@ async function updateAppointmentStatus(req, res) {
     nextStatus = APPOINTMENT_STATUSES.REJECTED;
     nextAssignedStaffId = null;
     nextRejectionReason = rejectionReason;
-    nextPaymentStatus =
+    const shouldKeepPaidPayment =
       appointment.payment?.status === PAYMENT_STATUSES.PAID ||
-      appointment.paymentStatus === PAYMENT_STATUSES.PAID
-        ? PAYMENT_STATUSES.PAID
-        : PAYMENT_STATUSES.REJECTED;
+      appointment.paymentStatus === PAYMENT_STATUSES.PAID;
+    nextPaymentStatus = shouldKeepPaidPayment ? PAYMENT_STATUSES.PAID : PAYMENT_STATUSES.REJECTED;
+    nextPaymentRecordStatus = shouldKeepPaidPayment ? null : PAYMENT_STATUSES.REJECTED;
     paymentHistoryNote = rejectionReason;
     activityAction = "ADMIN_APPOINTMENT_REJECTED";
     description = `Admin rejected appointment ${appointment.referenceNo}.`;
@@ -569,6 +570,7 @@ async function updateAppointmentStatus(req, res) {
       "Payment is already marked as paid.",
     );
     nextPaymentStatus = PAYMENT_STATUSES.PAID;
+    nextPaymentRecordStatus = PAYMENT_STATUSES.PAID;
     paymentHistoryNote = "Admin marked the cash payment as paid.";
     activityAction = "ADMIN_PAYMENT_MARKED_PAID";
     description = `Admin marked cash payment as paid for ${appointment.referenceNo}.`;
@@ -616,7 +618,8 @@ async function updateAppointmentStatus(req, res) {
 
     if (
       appointment.payment?.id &&
-      nextPaymentStatus !== appointment.payment.status
+      nextPaymentRecordStatus &&
+      nextPaymentRecordStatus !== appointment.payment.status
     ) {
       await connection.execute(
         `
@@ -625,7 +628,7 @@ async function updateAppointmentStatus(req, res) {
           WHERE id = ?
         `,
         [
-          nextPaymentStatus,
+          nextPaymentRecordStatus,
           req.user.id,
           action === "reject" ? rejectionReason : null,
           appointment.payment.id,
@@ -646,7 +649,7 @@ async function updateAppointmentStatus(req, res) {
         [
           appointment.payment.id,
           appointment.payment.status,
-          nextPaymentStatus,
+          nextPaymentRecordStatus,
           paymentHistoryNote,
           req.user.id,
         ],

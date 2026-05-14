@@ -50,20 +50,22 @@ function renderPaymentTable(appointments) {
         )}</span>`,
       },
       {
-        label: 'GCash Ref',
+        label: 'Reference',
         render: (row) =>
           row.payment?.method === 'gcash' && row.payment?.referenceNumber
             ? `<strong style="font-family: monospace;">${escapeHTML(row.payment.referenceNumber)}</strong><br><span class="muted">GCash</span>`
             : '<span class="muted">-</span>',
       },
       {
-        label: 'Student proof',
+        label: 'Payment proof',
         render: (row) =>
           row.payment?.proofImage
             ? `<span class="muted">Student screenshot uploaded</span><br><span class="muted">${escapeHTML(
                 formatDateTime(row.payment.createdAt || row.createdAt)
               )}</span>`
-            : '<span class="muted">Cash / no file</span>',
+            : row.payment?.method === 'gcash'
+              ? '<span class="muted">No GCash proof</span>'
+              : '<span class="muted">Cash payment</span>',
       },
       {
         label: 'Status',
@@ -81,9 +83,13 @@ function renderPaymentTable(appointments) {
 }
 
 function openReviewModal(helpers, appointment) {
+  const isGcashPayment = appointment.payment?.method === 'gcash';
+
   helpers.openModal({
     title: `Review ${appointment.referenceNo}`,
-    description: 'Inspect the student-uploaded screenshot and payment details, then approve or reject the payment.',
+    description: isGcashPayment
+      ? 'Inspect the student-uploaded screenshot and payment details, then approve or reject the payment.'
+      : 'Confirm the cash payment details, then approve or reject the payment.',
     content: `
       <form data-form="cashier-review-form" class="stack">
         <input type="hidden" name="appointmentId" value="${appointment.id}" />
@@ -105,7 +111,7 @@ function openReviewModal(helpers, appointment) {
         </article>
 
         ${
-          appointment.payment?.method === 'gcash' && appointment.payment?.referenceNumber
+          isGcashPayment && appointment.payment?.referenceNumber
             ? `
                 <article class="section-card payment-preview-card">
                   <div>
@@ -119,17 +125,19 @@ function openReviewModal(helpers, appointment) {
         }
 
         ${
-          appointment.payment?.proofImage
-            ? `
-                <article class="section-card">
-                  <strong>Student uploaded receipt screenshot</strong>
-                  <p class="section-card__description" style="margin-top: 0.5rem;">Review the screenshot uploaded by the student to verify transaction details.</p>
-                </article>
-                <img class="media-proof" src="${escapeHTML(resolveMediaUrl(appointment.payment.proofImage))}" alt="Payment proof for ${escapeHTML(
-                  appointment.referenceNo
-                )}" />
-              `
-            : '<article class="section-card"><p class="section-card__description">No proof image was uploaded. This is likely a cash payment that still needs onsite confirmation.</p></article>'
+          isGcashPayment
+            ? appointment.payment?.proofImage
+              ? `
+                  <article class="section-card">
+                    <strong>Student uploaded receipt screenshot</strong>
+                    <p class="section-card__description" style="margin-top: 0.5rem;">Review the screenshot uploaded by the student to verify transaction details.</p>
+                  </article>
+                  <img class="media-proof" src="${escapeHTML(resolveMediaUrl(appointment.payment.proofImage))}" alt="Payment proof for ${escapeHTML(
+                    appointment.referenceNo
+                  )}" />
+                `
+              : '<article class="section-card"><p class="section-card__description">No GCash proof image was uploaded.</p></article>'
+            : ''
         }
 
         <label class="field">

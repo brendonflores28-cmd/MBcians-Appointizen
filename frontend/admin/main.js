@@ -275,6 +275,8 @@ function renderAppointmentsSection(state) {
 
 function openAdminAppointmentModal(helpers, appointment) {
   const allowedActions = [];
+  const paymentMethod = appointment.payment?.method || "";
+  const isGcashPayment = paymentMethod === "gcash";
 
   if (appointment.status === "pending") {
     allowedActions.push({ value: "approve", label: "Approve request" });
@@ -328,30 +330,36 @@ function openAdminAppointmentModal(helpers, appointment) {
             <div class="info-list__item"><span>Status</span><strong>${statusBadge(appointment.status)}</strong></div>
             <div class="info-list__item"><span>Amount</span><strong>${escapeHTML(formatCurrency(appointment.payment?.amount || 0))}</strong></div>
             <div class="info-list__item"><span>Payment method</span><strong>${escapeHTML(
-              appointment.payment?.method?.toUpperCase() || "N/A",
+              paymentMethod.toUpperCase() || "N/A",
             )}</strong></div>
-            <div class="info-list__item"><span>GCash reference</span><strong>${escapeHTML(
-              appointment.payment?.referenceNumber || "N/A",
-            )}</strong></div>
+            ${
+              isGcashPayment
+                ? `<div class="info-list__item"><span>GCash reference</span><strong>${escapeHTML(
+                    appointment.payment?.referenceNumber || "N/A",
+                  )}</strong></div>`
+                : ""
+            }
           </div>
         </article>
 
         ${
-          appointment.payment?.proofImage
-            ? `
-                <article class="section-card">
-                  <strong>Uploaded payment screenshot</strong>
-                  <p class="section-card__description" style="margin-top: 0.5rem;">Admin can review the same proof image seen by cashier before taking action on this request.</p>
-                </article>
-                <img class="media-proof" src="${escapeHTML(resolveMediaUrl(appointment.payment.proofImage))}" alt="Payment proof for ${escapeHTML(
-                  appointment.referenceNo,
-                )}" />
-              `
-            : `
-                <article class="section-card">
-                  <p class="section-card__description">No screenshot proof is attached to this appointment yet. Cash payments and unpaid requests will appear like this until updated.</p>
-                </article>
-              `
+          isGcashPayment
+            ? appointment.payment?.proofImage
+              ? `
+                  <article class="section-card">
+                    <strong>Uploaded payment screenshot</strong>
+                    <p class="section-card__description" style="margin-top: 0.5rem;">Admin can review the same proof image seen by cashier before taking action on this request.</p>
+                  </article>
+                  <img class="media-proof" src="${escapeHTML(resolveMediaUrl(appointment.payment.proofImage))}" alt="Payment proof for ${escapeHTML(
+                    appointment.referenceNo,
+                  )}" />
+                `
+              : `
+                  <article class="section-card">
+                    <p class="section-card__description">No GCash screenshot proof is attached to this appointment yet.</p>
+                  </article>
+                `
+            : ""
         }
 
         ${

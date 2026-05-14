@@ -351,6 +351,7 @@ async function loadAvailability(helpers, appointmentDate) {
 function toggleStudentPaymentFields(method) {
   const proofGroup = document.querySelector('[data-proof-upload-group]');
   const proofInput = document.querySelector('input[name="proofImage"]');
+  const referenceInput = document.querySelector('input[name="referenceNumber"]');
   const qrSection = document.querySelector('[data-qr-section]');
   const cashGroup = document.querySelector('[data-cash-info-group]');
   const isGcash = method === 'gcash';
@@ -358,7 +359,16 @@ function toggleStudentPaymentFields(method) {
   proofGroup?.classList.toggle('hidden', !isGcash);
   qrSection?.classList.toggle('hidden', !isGcash);
   cashGroup?.classList.toggle('hidden', isGcash);
-  if (proofInput) proofInput.required = isGcash;
+  if (proofInput) {
+    proofInput.required = isGcash;
+    proofInput.disabled = !isGcash;
+    if (!isGcash) proofInput.value = '';
+  }
+  if (referenceInput) {
+    referenceInput.required = isGcash;
+    referenceInput.disabled = !isGcash;
+    if (!isGcash) referenceInput.value = '';
+  }
 }
 
 function renderProofPreview(file) {
