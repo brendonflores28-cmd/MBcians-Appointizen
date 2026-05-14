@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { id: "time-slots", label: "Time Slots", icon: "calendar" },
   { id: "blocked-dates", label: "Blocked Dates", icon: "alert" },
   { id: "users", label: "Users", icon: "users" },
+  { id: "audit-trail", label: "Audit Trail", icon: "list" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
@@ -471,35 +472,6 @@ function renderAdminOverview(state) {
       }
     </section>
 
-    <section class="section-card">
-      <div class="section-card__header">
-        <div>
-          <h3 class="section-card__title">Recent activity</h3>
-        </div>
-      </div>
-      ${
-        state.dashboard.recentLogs.length
-          ? `
-              <div class="stack">
-                ${state.dashboard.recentLogs
-                  .map(
-                    (log) => `
-                      <article class="section-card">
-                        <strong>${escapeHTML(labelize(log.action))}</strong>
-                        <p class="section-card__description">${escapeHTML(log.description)}</p>
-                        <span class="muted">${escapeHTML(log.userName ? log.userName + " | " : "")}${escapeHTML(log.userEmail ? log.userEmail + " | " : "")}${escapeHTML(formatDateTime(log.created_at))}</span>
-                      </article>
-                    `,
-                  )
-                  .join("")}
-              </div>
-            `
-          : renderEmptyState(
-              "No recent activity",
-              "System events will appear here once users start interacting with the platform.",
-            )
-      }
-    </section>
   `;
 }
 
@@ -683,6 +655,60 @@ function renderUsersSection(state) {
   `;
 }
 
+function renderAuditTrailSection(state) {
+  const auditFilters = state.auditFilters || { action: "", user: "" };
+  const logs = state.dashboard.recentLogs || [];
+
+  const uniqueActions = [...new Set(logs.map((l) => l.action))].sort();
+
+  const filtered = logs.filter((log) => {
+    if (auditFilters.action && log.action !== auditFilters.action) return false;
+    if (auditFilters.user) {
+      const q = auditFilters.user.toLowerCase();
+      const name = (log.userName || "").toLowerCase();
+      const email = (log.userEmail || "").toLowerCase();
+      if (!name.includes(q) && !email.includes(q)) return false;
+    }
+    return true;
+  });
+
+  return `
+    <section class="section-card">
+      <div class="section-card__header">
+        <div><h3 class="section-card__title">Audit Trail</h3><p class="section-card__description">Complete log of all system activities and user actions.</p></div>
+      </div>
+
+      <form data-form="admin-audit-filters" class="filter-form" style="margin-bottom:1rem;">
+        <select name="action">
+          <option value="">All activities</option>
+          ${uniqueActions.map((a) => `<option value="${escapeHTML(a)}" ${auditFilters.action === a ? "selected" : ""}>${escapeHTML(labelize(a))}</option>`).join("")}
+        </select>
+        <input name="user" type="text" placeholder="Filter by user or email" value="${escapeHTML(auditFilters.user)}" />
+        <button type="button" data-action="admin-reset-audit-filters" class="button button--ghost">Clear</button>
+      </form>
+
+      ${
+        filtered.length
+          ? `<div class="stack">
+              ${filtered.map((log) => `
+                <article class="section-card">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+                    <div>
+                      <strong>${escapeHTML(labelize(log.action))}</strong>
+                      <p class="section-card__description">${escapeHTML(log.description)}</p>
+                    </div>
+                    <span class="muted" style="white-space:nowrap;font-size:0.75rem;">${escapeHTML(formatDateTime(log.created_at))}</span>
+                  </div>
+                  ${log.userName || log.userEmail ? `<span class="muted" style="font-size:0.75rem;">By: ${escapeHTML(log.userName || "")}${log.userEmail ? " (" + escapeHTML(log.userEmail) + ")" : ""}</span>` : ""}
+                </article>
+              `).join("")}
+            </div>`
+          : renderEmptyState("No matching activity", "Try adjusting the filters above.")
+      }
+    </section>
+  `;
+}
+
 function renderSettingsSection(state) {
   const settings = state.dashboard.settings;
 
@@ -788,6 +814,8 @@ createPortalApp({
         return renderBlockedDatesSection(state);
       case "users":
         return renderUsersSection(state);
+      case "audit-trail":
+        return renderAuditTrailSection(state);
       case "settings":
         return renderSettingsSection(state);
       default:
@@ -821,6 +849,14 @@ createPortalApp({
       helpers.setState((current) => ({
         ...current,
         filters: { status: "", dateFrom: "", dateTo: "" },
+      }));
+      return;
+    }
+
+    if (action === "admin-reset-audit-filters") {
+      helpers.setState((current) => ({
+        ...current,
+        auditFilters: { action: "", user: "" },
       }));
       return;
     }
@@ -994,16 +1030,30 @@ createPortalApp({
     }
   },
   async handleChange(target, helpers) {
-    const form = target.closest('form[data-form="admin-filters"]');
-    if (!form) return;
-    const formData = new FormData(form);
-    helpers.setState((current) => ({
-      ...current,
-      filters: {
-        status: formData.get("status") || "",
-        dateFrom: formData.get("dateFrom") || "",
-        dateTo: formData.get("dateTo") || "",
-      },
-    }));
+    const filtersForm = target.closest('form[data-form="admin-filters"]');
+    if (filtersForm) {
+      const formData = new FormData(filtersForm);
+      helpers.setState((current) => ({
+        ...current,
+        filters: {
+          status: formData.get("status") || "",
+          dateFrom: formData.get("dateFrom") || "",
+          dateTo: formData.get("dateTo") || "",
+        },
+      }));
+      return;
+    }
+
+    const auditForm = target.closest('form[data-form="admin-audit-filters"]');
+    if (auditForm) {
+      const formData = new FormData(auditForm);
+      helpers.setState((current) => ({
+        ...current,
+        auditFilters: {
+          action: formData.get("action") || "",
+          user: formData.get("user") || "",
+        },
+      }));
+    }
   },
 });

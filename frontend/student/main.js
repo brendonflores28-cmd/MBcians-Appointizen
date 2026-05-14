@@ -598,7 +598,6 @@ function renderStudentOverview(state) {
   const { dashboard, searchQuery } = state;
   const filters = state.filters || {};
   const appointments = dashboard.appointments.filter((a) => matchesAppointmentSearch(a, searchQuery, filters));
-  const upcoming = getUpcomingAppointment(appointments);
 
   return `
     ${renderStatCards([
@@ -608,37 +607,6 @@ function renderStudentOverview(state) {
       { label: 'Completed', value: dashboard.stats.completedAppointments, icon: 'check', tone: 'success' },
       { label: 'Cancelled', value: dashboard.stats.cancelledAppointments, icon: 'alert', tone: 'danger' },
     ])}
-
-    <section class="panel-grid">
-      <article class="spotlight-card">
-        <div class="section-card__header">
-          <div>
-            <h3>Next action for your request</h3>
-            <p>View the appointment that currently needs your attention.</p>
-          </div>
-        </div>
-        ${upcoming ? `
-          <div class="info-list">
-            <div class="info-list__item"><span>Reference</span><strong>${escapeHTML(upcoming.referenceNo)}</strong></div>
-            <div class="info-list__item"><span>Document</span><strong>${escapeHTML(upcoming.documentName)}</strong></div>
-            <div class="info-list__item"><span>Schedule</span><strong>${escapeHTML(formatDate(upcoming.appointmentDate))}<br>${escapeHTML(formatTimeRange(upcoming.startTime, upcoming.endTime))}</strong></div>
-            <div class="info-list__item"><span>Status</span><strong>${statusBadge(upcoming.status)}</strong></div>
-          </div>
-        ` : renderEmptyState('No active appointment yet', 'Once you submit a request, it will appear here.')}
-      </article>
-
-      <article class="section-card section-card--soft">
-        <div class="section-card__header">
-          <div><h3 class="section-card__title">Office details</h3></div>
-        </div>
-        <div class="info-list">
-          <div class="info-list__item"><span>Office</span><strong>${escapeHTML(dashboard.settings?.orgName || 'Registrar Office')}</strong></div>
-          <div class="info-list__item"><span>Contact</span><strong>${escapeHTML(dashboard.settings?.orgEmail || 'N/A')}</strong></div>
-          <div class="info-list__item"><span>Phone</span><strong>${escapeHTML(dashboard.settings?.orgPhone || 'N/A')}</strong></div>
-          <div class="info-list__item"><span>Hours</span><strong>${escapeHTML(dashboard.settings?.officeHours || 'N/A')}</strong></div>
-        </div>
-      </article>
-    </section>
 
     <section class="section-card">
       <div class="section-card__header">
