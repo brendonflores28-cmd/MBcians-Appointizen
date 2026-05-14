@@ -12,6 +12,69 @@ const NAV_ITEMS = [
 
 const CANCELLABLE_STATUSES = ['pending', 'approved', 'assigned', 'processing'];
 const PAYMENT_READY_STATUSES = ['approved', 'assigned', 'processing'];
+const PURPOSE_OTHER_OPTION = 'Other';
+const DOCUMENT_PURPOSE_OPTIONS = {
+  'certificate of enrollment': [
+    'Scholarship Requirement',
+    'Employment Requirement',
+    'Internship / OJT Requirement',
+    'School Transfer',
+    'Visa / Travel Requirement',
+    'Bank / Financial Requirement',
+    'ID Application',
+    'Educational Assistance',
+    'Board Exam Requirement',
+    'Personal Record',
+  ],
+  'certificate of grades': [
+    'Scholarship Requirement',
+    'Academic Evaluation',
+    'Internship / OJT Requirement',
+    'Employment Requirement',
+    'School Transfer',
+    'College / University Admission',
+    'Personal Record',
+    'Qualification Verification',
+  ],
+  'certified true copy of grades': [
+    'Official Verification',
+    'School Transfer',
+    'Employment Requirement',
+    'Scholarship Requirement',
+    'Government Requirement',
+    'Visa / Travel Requirement',
+    'Board Exam Requirement',
+    'Personal Record',
+  ],
+  'diploma / graduation document': [
+    'Employment Requirement',
+    'Board Exam Requirement',
+    'Visa / Travel Requirement',
+    'Further Studies / Masteral',
+    'Government Requirement',
+    'Personal Record',
+    'Replacement Request',
+  ],
+  'good moral certificate': [
+    'School Transfer',
+    'Scholarship Requirement',
+    'Employment Requirement',
+    'Internship / OJT Requirement',
+    'College Admission',
+    'Organization Requirement',
+    'Personal Record',
+  ],
+  'transcript of records': [
+    'Employment Requirement',
+    'School Transfer',
+    'Further Studies / Masteral',
+    'Board Exam Requirement',
+    'Visa / Travel Requirement',
+    'Credential Evaluation',
+    'Scholarship Requirement',
+    'Permanent Record',
+  ],
+};
 
 function buildDefaultBooking(settings, documents) {
   const preferredMethod = settings?.gcashEnabled ? 'gcash' : settings?.cashEnabled ? 'cash' : 'gcash';
@@ -21,12 +84,38 @@ function buildDefaultBooking(settings, documents) {
     copies: 1,
     isRush: false,
     purpose: '',
+    purposeOther: '',
     remarks: '',
     paymentMethod: preferredMethod,
     referenceNumber: '',
     appointmentDate: '',
     timeSlotId: '',
   };
+}
+
+function normalizeDocumentTypeName(name) {
+  return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function getPurposeOptions(documentName) {
+  const options = DOCUMENT_PURPOSE_OPTIONS[normalizeDocumentTypeName(documentName)] || [];
+  return [
+    ...options.filter((option, index, source) => (
+      option !== PURPOSE_OTHER_OPTION && source.indexOf(option) === index
+    )),
+    PURPOSE_OTHER_OPTION,
+  ];
+}
+
+function getSelectedPurposeValue(booking, purposeOptions) {
+  const purpose = String(booking.purpose || '').trim();
+  if (!purpose) return purposeOptions[0] || '';
+  return purposeOptions.includes(purpose) ? purpose : PURPOSE_OTHER_OPTION;
+}
+
+function getPurposeOtherValue(booking, purposeOptions) {
+  if (getSelectedPurposeValue(booking, purposeOptions) !== PURPOSE_OTHER_OPTION) return '';
+  return String(booking.purposeOther || (booking.purpose === PURPOSE_OTHER_OPTION ? '' : booking.purpose) || '');
 }
 
 function getPaymentChoices(settings) {
@@ -639,6 +728,9 @@ function renderStudentOverview(state) {
 function renderStudentBookSection(state) {
   const { dashboard, booking, availability, availabilityLoading } = state;
   const document = dashboard.documents.find((item) => Number(item.id) === Number(booking.documentTypeId));
+  const purposeOptions = getPurposeOptions(document?.name);
+  const selectedPurposeValue = getSelectedPurposeValue(booking, purposeOptions);
+  const purposeOtherValue = getPurposeOtherValue(booking, purposeOptions);
   const totalAmount = calculateDocumentFee(document, booking);
   const paymentChoices = getPaymentChoices(dashboard.settings);
   const selectedSlot = getSelectedSlot(availability, booking.timeSlotId);
@@ -778,8 +870,21 @@ function renderStudentBookSection(state) {
 
             <label class="field">
               <span>Purpose of request</span>
-              <textarea name="purpose" placeholder="Example: scholarship renewal, employment requirement, transfer credential">${escapeHTML(booking.purpose)}</textarea>
+              <select name="purpose" required>
+                ${purposeOptions.map((option) => `
+                  <option value="${escapeHTML(option)}" ${option === selectedPurposeValue ? 'selected' : ''}>
+                    ${escapeHTML(option)}
+                  </option>
+                `).join('')}
+              </select>
             </label>
+
+            ${selectedPurposeValue === PURPOSE_OTHER_OPTION ? `
+              <label class="field">
+                <span>Please specify purpose</span>
+                <input name="purposeOther" type="text" placeholder="Please specify..." value="${escapeHTML(purposeOtherValue)}" required />
+              </label>
+            ` : ''}
 
             <label class="field">
               <span>Additional remarks <span class="muted">(optional)</span></span>
@@ -1224,7 +1329,7 @@ createPortalApp({
   async handleInput(target, helpers) {
     const form = target.closest('form[data-form="student-booking-step-1"]');
 
-    if (form && ['documentTypeId', 'isRush', 'paymentMethod'].includes(target.name)) {
+    if (form && target.name === 'documentTypeId') {
       const formData = new FormData(form);
       helpers.setState((current) => ({
         ...current,
@@ -1232,8 +1337,44 @@ createPortalApp({
           ...current.booking,
           documentTypeId: Number(formData.get('documentTypeId')),
           isRush: formData.get('isRush') === 'true',
+          purpose: '',
+          purposeOther: '',
           paymentMethod: String(formData.get('paymentMethod') || current.booking.paymentMethod),
         },
+      }));
+      return;
+    }
+
+    if (form && ['isRush', 'paymentMethod'].includes(target.name)) {
+      const formData = new FormData(form);
+      helpers.setState((current) => ({
+        ...current,
+        booking: {
+          ...current.booking,
+          isRush: formData.get('isRush') === 'true',
+          paymentMethod: String(formData.get('paymentMethod') || current.booking.paymentMethod),
+        },
+      }));
+      return;
+    }
+
+    if (form && target.name === 'purpose') {
+      const purpose = String(target.value || '').trim();
+      helpers.setState((current) => ({
+        ...current,
+        booking: {
+          ...current.booking,
+          purpose,
+          purposeOther: purpose === PURPOSE_OTHER_OPTION ? current.booking.purposeOther || '' : '',
+        },
+      }));
+      return;
+    }
+
+    if (form && target.name === 'purposeOther') {
+      helpers.setState((current) => ({
+        ...current,
+        booking: { ...current.booking, purposeOther: String(target.value || '') },
       }));
       return;
     }
@@ -1305,7 +1446,18 @@ createPortalApp({
       const appointmentDate = String(formData.get('appointmentDate') || state.booking.appointmentDate || '').trim();
       let availability = state.availability;
 
-      const purpose = String(formData.get('purpose') || '').trim();
+      const documentTypeId = Number(formData.get('documentTypeId'));
+      const selectedDocument = state.dashboard.documents.find((item) => Number(item.id) === documentTypeId);
+      const validPurposeOptions = getPurposeOptions(selectedDocument?.name);
+      const selectedPurpose = String(formData.get('purpose') || '').trim();
+      const purposeOther = String(formData.get('purposeOther') || '').trim();
+      const purpose = selectedPurpose === PURPOSE_OTHER_OPTION ? purposeOther : selectedPurpose;
+
+      if (!validPurposeOptions.includes(selectedPurpose)) {
+        helpers.showToast('Choose a valid purpose for the selected document type.', 'warning');
+        return;
+      }
+
       if (!purpose) {
         helpers.showToast('Enter the purpose of your request before continuing.', 'warning');
         return;
@@ -1345,10 +1497,11 @@ createPortalApp({
         booking: {
           ...current.booking,
           step: 2,
-          documentTypeId: Number(formData.get('documentTypeId')),
+          documentTypeId,
           copies,
           isRush: formData.get('isRush') === 'true',
           purpose,
+          purposeOther: selectedPurpose === PURPOSE_OTHER_OPTION ? purposeOther : '',
           remarks: String(formData.get('remarks') || '').trim(),
           paymentMethod: String(formData.get('paymentMethod') || 'gcash'),
           appointmentDate,
