@@ -1021,12 +1021,15 @@ createPortalApp({
         return;
       }
 
-      await helpers.api.patch(`/admin/appointments/${appointmentId}/status`, {
+      const response = await helpers.api.patch(`/admin/appointments/${appointmentId}/status`, {
         action,
         remarks,
       });
       helpers.closeModal();
-      helpers.showToast("Appointment updated successfully.", "success");
+      helpers.showToast(
+        response?.message || "Appointment updated successfully.",
+        response?.emailNotification?.status === "failed" ? "warning" : "success",
+      );
       await helpers.refresh({ silent: true });
       return;
     }

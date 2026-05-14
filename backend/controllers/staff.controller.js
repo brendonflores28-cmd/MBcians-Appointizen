@@ -17,6 +17,7 @@ const {
 } = require('../utils/validation');
 const { getAppointments, getAppointmentById } = require('../services/appointment.service');
 const { emitToRecipients, notifyUser } = require('../services/notification.service');
+const { sendAppointmentCompletedEmailNotification } = require('../services/email.service');
 
 async function getDashboard(req, res) {
   const [statsRow, appointments] = await Promise.all([
@@ -91,7 +92,7 @@ async function updateAppointmentStatus(req, res) {
   }
 
   const updatedAppointment = await withTransaction(async (connection) => {
-    await connection.execute(
+    const [updateResult] = await connection.execute(
       `
         UPDATE appointments
         SET
@@ -101,8 +102,15 @@ async function updateAppointmentStatus(req, res) {
           remarks = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
+          AND status = ?
       `,
-      [nextStatus, nextPaymentStatus, req.user.id, remarks, appointmentId]
+      [nextStatus, nextPaymentStatus, req.user.id, remarks, appointmentId, appointment.status]
+    );
+
+    assert(
+      updateResult.affectedRows === 1,
+      'Appointment status was already changed. Refresh and try again.',
+      409
     );
 
     await writeActivityLog(
@@ -133,6 +141,18 @@ async function updateAppointmentStatus(req, res) {
     return getAppointmentById(appointmentId, connection);
   });
 
+  let emailNotification = null;
+  if (
+    appointment.status !== APPOINTMENT_STATUSES.COMPLETED &&
+    nextStatus === APPOINTMENT_STATUSES.COMPLETED
+  ) {
+    emailNotification = await sendAppointmentCompletedEmailNotification({
+      appointment: updatedAppointment,
+      actor: req.user,
+      meta,
+    });
+  }
+
   emitToRecipients(
     SOCKET_EVENTS.APPOINTMENTS_CHANGED,
     { appointmentId, action, status: nextStatus },
@@ -140,8 +160,12 @@ async function updateAppointmentStatus(req, res) {
   );
 
   res.json({
-    message: 'Appointment updated successfully.',
+    message:
+      emailNotification?.status === 'failed'
+        ? 'Appointment updated successfully, but email notification could not be sent.'
+        : 'Appointment updated successfully.',
     appointment: updatedAppointment,
+    emailNotification,
   });
 }
 

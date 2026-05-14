@@ -254,12 +254,15 @@ createPortalApp({
     }
 
     const formData = new FormData(form);
-    await helpers.api.patch(`/staff/appointments/${formData.get('appointmentId')}/status`, {
+    const response = await helpers.api.patch(`/staff/appointments/${formData.get('appointmentId')}/status`, {
       action: formData.get('action'),
       remarks: formData.get('remarks'),
     });
     helpers.closeModal();
-    helpers.showToast(`Staff action "${labelize(formData.get('action'))}" applied successfully.`, 'success');
+    helpers.showToast(
+      response?.message || `Staff action "${labelize(formData.get('action'))}" applied successfully.`,
+      response?.emailNotification?.status === 'failed' ? 'warning' : 'success'
+    );
     await helpers.refresh({ silent: true });
   },
   async handleChange(target, helpers) {

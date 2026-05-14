@@ -7,7 +7,9 @@
   "type": "commonjs",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "smtp:verify": "node scripts/verify-smtp.js",
+    "smtp:test-ready": "node scripts/send-test-ready-email.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -19,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "mysql2": "^3.15.3",
+    "nodemailer": "^8.0.7",
     "socket.io": "^4.8.1"
   }
 }
