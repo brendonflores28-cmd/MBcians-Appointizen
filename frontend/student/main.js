@@ -801,7 +801,7 @@ function renderStudentBookSection(state) {
 
             <article class="fee-summary-card">
               <div class="fee-summary-card__row"><span>Base fee</span><strong>${escapeHTML(formatCurrency(document?.baseFee || 0))}</strong></div>
-              <div class="fee-summary-card__row"><span>Copy fee (×${escapeHTML(String(Math.max(1, Number(booking.copies) || 1))})</span><strong>${escapeHTML(formatCurrency((document?.copyFee || 0) * Math.max(1, Number(booking.copies) || 1)))}</strong></div>
+              <div class="fee-summary-card__row"><span>Copy fee (×${escapeHTML(String(Math.max(1, Number(booking.copies) || 1)))})</span><strong>${escapeHTML(formatCurrency((document?.copyFee || 0) * Math.max(1, Number(booking.copies) || 1)))}</strong></div>
               <div class="fee-summary-card__row"><span>Rush fee</span><strong>${escapeHTML(formatCurrency(booking.isRush ? document?.rushFee || 0 : 0))}</strong></div>
               <div class="fee-summary-card__row fee-summary-card__row--total"><span>Total estimate</span><strong>${escapeHTML(formatCurrency(totalAmount))}</strong></div>
             </article>
